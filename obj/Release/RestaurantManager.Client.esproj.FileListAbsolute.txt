@@ -1,0 +1,1 @@
+D:\dev\diplomna\RestaurantManager\server\src\RestaurantManager.Client\obj\Release\RestaurantManager.Client.esproj.CoreCompileInputs.cache
