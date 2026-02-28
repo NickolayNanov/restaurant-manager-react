@@ -45,8 +45,7 @@ const MenuItemsSection = ({
         // Sort categories alphabetically
         return Array.from(map.entries())
             .sort(([a], [b]) => a.localeCompare(b))
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            .map(([category, group]) => ({
+            .map(([, group]) => ({
                 category: group.category.name,
                 items: group.items.slice().sort((x, y) => x.name.localeCompare(y.name)),
             }));
