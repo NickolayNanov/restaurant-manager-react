@@ -42,12 +42,12 @@ const CategoriesSection: React.FC = () => {
             if (!q) return true;
             return (
                 c.name.toLowerCase().includes(q) ||
-                (c.description ?? "").toLowerCase().includes(q)
+                (c.name ?? "").toLowerCase().includes(q)
             );
         });
 
         if (sort === "name") list = [...list].sort((a, b) => a.name.localeCompare(b.name));
-        if (sort === "items") list = [...list].sort((a, b) => b.itemCount - a.itemCount);
+        if (sort === "items") list = [...list].sort((a, b) => b.menuItemsCount - a.menuItemsCount);
 
         // sort === "order" => keep current array order
         return list;

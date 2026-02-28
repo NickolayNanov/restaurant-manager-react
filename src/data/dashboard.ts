@@ -9,10 +9,30 @@ export const dashboardKpis = {
 };
 
 export const restaurants: Restaurant[] = [
-  { id: "r1", name: "Bella Italia", status: "Open", cuisine: "Italian", location: "Sofia", rating: 4.7 },
-  { id: "r2", name: "Sushi World", status: "Closed", cuisine: "Japanese", location: "Plovdiv", rating: 4.6 },
-  { id: "r3", name: "Burger Palace", status: "Open", cuisine: "American", location: "Varna", rating: 4.5 },
-  { id: "r4", name: "Taco Fiesta", status: "Open", cuisine: "Mexican", location: "Burgas", rating: 4.4 },
+  {
+    id: "r1", name: "Bella Italia", status: "Open", cuisine: "Italian", location: "Sofia",
+    description: "",
+    imgUrl: "",
+    ownerId: null
+  },
+  {
+    id: "r2", name: "Sushi World", status: "Closed", cuisine: "Japanese", location: "Plovdiv",
+    description: "",
+    imgUrl: "",
+    ownerId: null
+  },
+  {
+    id: "r3", name: "Burger Palace", status: "Open", cuisine: "American", location: "Varna",
+    description: "",
+    imgUrl: "",
+    ownerId: null
+  },
+  {
+    id: "r4", name: "Taco Fiesta", status: "Open", cuisine: "Mexican", location: "Burgas",
+    description: "",
+    imgUrl: "",
+    ownerId: null
+  },
 ];
 
 export const analytics = [
@@ -56,7 +76,12 @@ export const seedMenu = (restaurantId: string, menuId: string): MenuWithItems =>
       imgUrl:
         "https://images.unsplash.com/photo-1604909052743-94e838986d24?auto=format&fit=crop&w=400&q=70",
       isActive: true,
-      category: "Salads",
+      category: {
+        id: "",
+        name: "",
+        isActive: false,
+        menuItemsCount: 0
+      }
     },
     {
       id: "i12",
@@ -65,7 +90,12 @@ export const seedMenu = (restaurantId: string, menuId: string): MenuWithItems =>
       imgUrl:
         "https://images.unsplash.com/photo-1604909052743-94e838986d24?auto=format&fit=crop&w=400&q=70",
       isActive: true,
-      category: "Salads",
+      category: {
+        id: "",
+        name: "",
+        isActive: false,
+        menuItemsCount: 0
+      }
     },
     {
       id: "i13",
@@ -74,7 +104,12 @@ export const seedMenu = (restaurantId: string, menuId: string): MenuWithItems =>
       imgUrl:
         "https://images.unsplash.com/photo-1604909052743-94e838986d24?auto=format&fit=crop&w=400&q=70",
       isActive: true,
-      category: "Salads",
+      category: {
+        id: "",
+        name: "",
+        isActive: false,
+        menuItemsCount: 0
+      }
     }
     ,
     {
@@ -84,25 +119,38 @@ export const seedMenu = (restaurantId: string, menuId: string): MenuWithItems =>
       imgUrl:
         "https://images.unsplash.com/photo-1553621042-f6e147245754?auto=format&fit=crop&w=400&q=70",
       isActive: true,
-      category: "Main Courses",
+      category: {
+        id: "",
+        name: "",
+        isActive: false,
+        menuItemsCount: 0
+      }
     },
     {
       id: "i3",
       name: "Strawberry Lemonade",
       price: 3.49,
-      imgUrl:
-        "https://images.unsplash.com/photo-1528825871115-3581a5387919?auto=format&fit=crop&w=400&q=70",
+      imgUrl: "https://images.unsplash.com/photo-1528825871115-3581a5387919?auto=format&fit=crop&w=400&q=70",
       isActive: true,
-      category: "Drinks",
+      category: {
+        id: "",
+        name: "",
+        isActive: false,
+        menuItemsCount: 0
+      }
     },
     {
       id: "i4",
       name: "Watermelon Sorbet",
       price: 4.99,
-      imgUrl:
-        "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&w=400&q=70",
+      imgUrl: "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&w=400&q=70",
       isActive: false,
-      category: "Desserts",
+      category: {
+        id: "",
+        name: "",
+        isActive: false,
+        menuItemsCount: 0
+      }
     },
   ],
 });

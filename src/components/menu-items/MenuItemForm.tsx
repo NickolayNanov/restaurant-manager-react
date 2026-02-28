@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { type MenuItemFormValues } from "../../pages/MenuEditorPage";
-import { normalizeCategory, cx } from "../helper";
 import type { Category } from "../../types/categories-types";
+import { cx } from "../helper";
 
 const MenuItemForm = ({
   initial,
@@ -23,7 +23,7 @@ const MenuItemForm = ({
     const e: Record<string, string> = {};
     if (!x.name.trim()) e.name = "Name is required";
     if (!Number.isFinite(x.price) || x.price <= 0) e.price = "Price must be > 0";
-    if (!x.ca.trim()) e.category = "Category is required";
+    if (!x.category.name.trim()) e.category = "Category is required";
     return e;
   };
 
@@ -38,8 +38,9 @@ const MenuItemForm = ({
       price: Number(v.price),
       imgUrl: v.imgUrl?.trim() || "",
       isActive: v.isActive,
-      categoryId: v.categoryId,
-      categoryName: normalizeCategory(v.categoryName)
+      category: {
+        ...v.category
+      }
     });
   };
 
@@ -79,8 +80,8 @@ const MenuItemForm = ({
           <label className="text-xs font-medium text-slate-700">Category</label>
           <select
             className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
-            value={v.categoryId}
-            onChange={(e) => setV((p) => ({ ...p, categoryId: e.target.value, categoryName: categories.find(c => c.id === e.target.value)!.name }))}
+            value={v.category.id}
+            onChange={(e) => setV((p) => ({ ...p, category: categories.find(c => c.id === e.target.value)! }))}
           >
             {categories?.map(c => {
               return <option key={c.id} value={c.id}>{c.name}</option>

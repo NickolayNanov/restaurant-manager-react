@@ -1,4 +1,4 @@
-import { Building2, ChefHat, ExternalLink, MapPin, Pencil, Trash2 } from "lucide-react";
+import { ChefHat, ExternalLink, MapPin, Pencil, Trash2 } from "lucide-react";
 import type { Restaurant, RestaurantStatus } from "../../types/restaurants";
 import { useNavigate } from "react-router-dom";
 

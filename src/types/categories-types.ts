@@ -2,7 +2,7 @@ export type Category = {
     id: string,
     name: string,
     isActive: boolean
-    menuItemsCount: number | null;
+    menuItemsCount: number;
 }
 
 export type ListAllCategoriesApiResponse = {

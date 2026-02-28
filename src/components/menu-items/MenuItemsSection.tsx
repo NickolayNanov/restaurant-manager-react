@@ -25,7 +25,6 @@ const MenuItemsSection = ({
         const map = new Map<string, { category: Category, items: MenuItem[] }>();
 
         menu.items.map(item => {
-            debugger
             const normalizedCategoryName = normalizeCategory(item.category.name);
 
             if (!map.has(item.category.id)) {
@@ -46,6 +45,7 @@ const MenuItemsSection = ({
         // Sort categories alphabetically
         return Array.from(map.entries())
             .sort(([a], [b]) => a.localeCompare(b))
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             .map(([category, group]) => ({
                 category: group.category.name,
                 items: group.items.slice().sort((x, y) => x.name.localeCompare(y.name)),
