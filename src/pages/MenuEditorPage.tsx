@@ -16,7 +16,7 @@ import { apiFetch } from "../api/apiFetch";
 import { type Category, type ListAllCategoriesApiResponse } from "../types/categories-types";
 import MenuItemsSection from "../components/menu-items/MenuItemsSection";
 import MenuInfoCard from "../components/menus/MenuInfoCard";
-import type { SingleRestaurantApiResponse } from "../types/restaurants";
+import type { SingleRestaurantApiResponse } from "../types/restaurants-types";
 
 // ---------- forms ----------
 export type MenuEditValues = Pick<MenuWithItems, "name" | "description" | "imgUrl" | "isActive" | "type">;
@@ -137,7 +137,8 @@ const MenuEditorPage = () => {
     });
 
     if (newItem) {
-      setMenu((p) => ({ ...p, items: [newItem, ...p.items] }));
+      const mappedItem = { ...newItem, category: { id: newItem.categoryId, name: newItem.categoryText }}
+      setMenu((p) => ({ ...p, items: [mappedItem, ...p.items] }));
       setItemCreateOpen(false);
     }
   };
@@ -255,7 +256,7 @@ const MenuEditorPage = () => {
         </ModalShell>
       )}
 
-      {itemEditTarget && itemDeleteTarget && (
+      {itemEditTarget && (
         <ModalShell title={`Edit: ${itemEditTarget.name}`} onClose={() => setItemEditTarget(null)}>
           <MenuItemForm
             initial={{
@@ -263,7 +264,7 @@ const MenuEditorPage = () => {
               price: itemEditTarget.price,
               imgUrl: itemEditTarget.imgUrl ?? "",
               isActive: itemEditTarget.isActive,
-              category: itemDeleteTarget.category
+              category: itemEditTarget.category
             }}
             categories={categories}
             submitLabel="Save"

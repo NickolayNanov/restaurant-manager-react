@@ -1,4 +1,4 @@
-import type { RestaurantStatus } from "../../types/restaurants";
+import type { RestaurantStatus } from "../../types/restaurants-types";
 import { cx } from "../helper";
 
 const StatusPill = ({ status }: { status: RestaurantStatus }) => {

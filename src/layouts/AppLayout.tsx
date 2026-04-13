@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import Sidebar from "../components/dashboard/Sidebar";
 import Topbar from "../components/dashboard/Topbar";
+import { Toaster } from "sonner";
 
 const AppLayout = () => {
   return (
@@ -12,6 +13,7 @@ const AppLayout = () => {
             <Topbar />
             <main className="flex-1 overflow-auto p-4 md:p-6">
               <Outlet />
+              <Toaster />
             </main>
           </div>
         </div>

@@ -1,3 +1,5 @@
+import { toast } from "sonner"
+
 const API_BASE_URL = import.meta.env.VITE_SERVER_BASE_URL as string
 
 const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
@@ -11,12 +13,15 @@ const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     credentials: "include", // includes http only cookie
     headers,
     ...options,
-  });
+  }); 
 
   if (!res.ok) {
-    // TODO: Handle errors and redirect
-    const text = await res.text().catch(() => "");
-    throw new Error(`HTTP ${res.status} ${res.statusText} ${text}`);
+    const exception = await res.json();
+    const errors = Object.values(exception.errors).flat()
+
+    for (let i = 0; i < errors.length; i++) {
+      toast.error(errors[i] as string);
+    }
   }
 
   if (res.status == 200 || res.status == 201) {
