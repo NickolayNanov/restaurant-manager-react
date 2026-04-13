@@ -1,5 +1,5 @@
 import type { MenuWithItems } from "../types/menu-types";
-import type { Restaurant } from "../types/restaurants";
+import type { Restaurant } from "../types/restaurants-types";
 
 export const dashboardKpis = {
   totalRestaurants: 12,

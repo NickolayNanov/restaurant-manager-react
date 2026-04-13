@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { RestaurantFormValues, RestaurantStatus } from "../../types/restaurants";
+import type { RestaurantFormValues, RestaurantStatus } from "../../types/restaurants-types";
 import { classNames } from "../helper";
 
 const RestaurantForm = ({

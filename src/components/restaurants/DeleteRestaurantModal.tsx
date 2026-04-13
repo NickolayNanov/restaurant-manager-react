@@ -1,4 +1,4 @@
-import type { Restaurant, RestaurantWithMenu } from "../../types/restaurants";
+import type { Restaurant, RestaurantWithMenu } from "../../types/restaurants-types";
 import ModalShell from "../modals/ModalShell";
 
 const DeleteRestaurantModal = ({

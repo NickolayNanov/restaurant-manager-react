@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import ManageRestaurantsHeader from "../components/restaurants/ManageRestaurantsHeader";
 import ManageRestaurantsTable from "../components/restaurants/ManageRestaurantsTable";
-import type { Restaurant, RestaurantFormValues, SingleRestaurantApiResponse } from "../types/restaurants";
+import type { Restaurant, RestaurantFormValues, SingleRestaurantApiResponse } from "../types/restaurants-types";
 import { apiFetch } from "../api/apiFetch";
 import RestaurantForm from "../components/restaurants/RestaurantForm";
 import ModalShell from "../components/modals/ModalShell";

@@ -3,7 +3,7 @@ import { Pencil, Trash2, RefreshCw, MapPin, UtensilsCrossed, Plus, ArrowRight } 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { apiFetch } from "../api/apiFetch";
-import type { RestaurantFormValues, RestaurantWithMenu, SingleRestaurantApiResponse } from "../types/restaurants";
+import type { RestaurantFormValues, RestaurantWithMenu, SingleRestaurantApiResponse } from "../types/restaurants-types";
 import type { Menu, MenuForm } from "../types/menu-types";
 import ModalShell from "../components/modals/ModalShell";
 import DeleteRestaurantModal from "../components/restaurants/DeleteRestaurantModal";
@@ -296,7 +296,7 @@ const SingleRestaurantPage = () => {
 
             <CategoriesSection />
 
-            <EmployeesSection />
+            <EmployeesSection restaurantId={restaurantId as string} />
 
             {/* Edit modal */}
             {editTarget && (
