@@ -13,7 +13,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Optional: avoid double call in React 18 StrictMode dev
   const didInit = useRef(false);
 
   const refresh = async () => {
@@ -22,9 +21,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const data: UserInfo = await apiFetch("api/users/user-info");
       setUser(data);
     } catch (e: any) {
-      // If your apiFetch throws with status:
-      // if (e.status === 401) ...
-      // Otherwise just treat as not authenticated.
       setUser(null);
     } finally {
       setIsLoading(false);
