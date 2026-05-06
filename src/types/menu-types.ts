@@ -18,7 +18,8 @@ export type MenuForm = {
   id: string | null;
   name: string;
   description: string;
-  imgUrl: string;
+  imageFile: File | null;
+  existingImgUrl?: string;
   isActive: boolean;
   type: MenuType;
   restaurantId: string;

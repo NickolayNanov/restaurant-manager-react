@@ -7,7 +7,9 @@ const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
   const headers = new Headers(options.headers);
 
   headers.set("Accept", "application/json");
-  headers.set("Content-Type", "application/json");
+  if (!(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
 
   const res = await fetch(fullEndpoint, {
     credentials: "include", // includes http only cookie
@@ -16,8 +18,10 @@ const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
   }); 
 
   if (!res.ok) {
-    const exception = await res.json();
-    const errors = Object.values(exception.errors).flat()
+    const exception = await res.json().catch(() => null);
+    const errors = exception?.errors
+      ? Object.values(exception.errors).flat()
+      : [exception?.detail ?? exception?.title ?? "Request failed"];
 
     for (let i = 0; i < errors.length; i++) {
       toast.error(errors[i] as string);

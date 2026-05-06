@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import ManageRestaurantsHeader from "../components/restaurants/ManageRestaurantsHeader";
 import ManageRestaurantsTable from "../components/restaurants/ManageRestaurantsTable";
 import type { Restaurant, RestaurantFormValues, SingleRestaurantApiResponse } from "../types/restaurants-types";
@@ -8,6 +8,7 @@ import ModalShell from "../components/modals/ModalShell";
 import { classNames } from "../components/helper";
 import DeleteRestaurantModal from "../components/restaurants/DeleteRestaurantModal";
 import EditRestaurantModal from "../components/restaurants/EditRestaurantModal";
+import { appendFileIfSelected } from "../components/imageUpload";
 
 const emptyForm: RestaurantFormValues = {
   name: "",
@@ -15,8 +16,21 @@ const emptyForm: RestaurantFormValues = {
   status: "Open",
   cuisine: "",
   description: "",
-  imgUrl: "",
+  imageFile: null,
   ownerId: null
+};
+
+const buildRestaurantFormData = (values: RestaurantFormValues, id?: string) => {
+  const data = new FormData();
+  if (id) data.append("id", id);
+  data.append("name", values.name);
+  data.append("description", values.description);
+  data.append("location", values.location);
+  data.append("cuisine", values.cuisine);
+  data.append("status", values.status);
+  if (values.ownerId) data.append("ownerId", values.ownerId);
+  appendFileIfSelected(data, values.imageFile);
+  return data;
 };
 
 const ManageRestaurantsPage = () => {
@@ -26,19 +40,41 @@ const ManageRestaurantsPage = () => {
   const [editTarget, setEditTarget] = useState<Restaurant | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Restaurant | null>(null);
 
-  const didInit = useRef(false);
+  async function fetchRestaurants() {
+    const data = await apiFetch("api/restaurants", {
+      method: "GET"
+    });
+    
+    const restaurants = data.restaurants.map((r: SingleRestaurantApiResponse) => {
+      return {
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        status: r.status,
+        cuisine: r.cuisine,
+        location: r.location,
+        imgUrl: r.imgUrl,
+        ownerId: r.ownerId
+      }
+    });
+
+    if (restaurants) {
+      setRows(restaurants);
+    }
+  }
 
   useEffect(() => {
-    if (didInit.current) return;
-    didInit.current = true;
+    const timer = window.setTimeout(() => {
+      void fetchRestaurants();
+    }, 0);
 
-    void fetchRestaurants();
+    return () => window.clearTimeout(timer);
   }, []);
 
   const createRestaurant = async (formData: RestaurantFormValues) => {
     const response = await apiFetch("api/restaurants", {
       method: "POST",
-      body: JSON.stringify(formData)
+      body: buildRestaurantFormData(formData)
     });
 
     if (response) {
@@ -61,10 +97,10 @@ const ManageRestaurantsPage = () => {
   const updateRestaurant = async (id: string, formData: RestaurantFormValues) => {
     await apiFetch("api/restaurants", {
       method: "PUT",
-      body: JSON.stringify({ id, ...formData })
+      body: buildRestaurantFormData(formData, id)
     });
 
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...formData } : r)));
+    await fetchRestaurants();
     setEditTarget(null);
   }
 
@@ -74,29 +110,6 @@ const ManageRestaurantsPage = () => {
     });
     setRows((prev) => prev.filter((r) => r.id !== id));
     setDeleteTarget(null);
-  }
-
-  const fetchRestaurants = async () => {
-    const data = await apiFetch("api/restaurants", {
-      method: "GET"
-    });
-    
-    const restaurants = data.restaurants.map((r: SingleRestaurantApiResponse) => {
-      return {
-        id: r.id,
-        name: r.name,
-        description: r.description,
-        status: r.status,
-        cuisine: r.cuisine,
-        location: r.location,
-        imgUrl: r.imgUrl,
-        ownerId: r.ownerId
-      }
-    });
-
-    if (restaurants) {
-      setRows(restaurants);
-    }
   }
 
   return (

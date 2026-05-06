@@ -17,15 +17,24 @@ import { type Category, type ListAllCategoriesApiResponse } from "../types/categ
 import MenuItemsSection from "../components/menu-items/MenuItemsSection";
 import MenuInfoCard from "../components/menus/MenuInfoCard";
 import type { SingleRestaurantApiResponse } from "../types/restaurants-types";
+import { appendFileIfSelected } from "../components/imageUpload";
 
 // ---------- forms ----------
-export type MenuEditValues = Pick<MenuWithItems, "name" | "description" | "imgUrl" | "isActive" | "type">;
-export type MenuItemFormValues = Pick<MenuItem, "name" | "price" | "imgUrl" | "isActive" | "category">;
+export type MenuEditValues = Pick<MenuWithItems, "name" | "description" | "isActive" | "type"> & {
+  id?: string | null;
+  restaurantId?: string;
+  imageFile: File | null;
+  existingImgUrl?: string;
+};
+export type MenuItemFormValues = Pick<MenuItem, "name" | "price" | "isActive" | "category"> & {
+  imageFile: File | null;
+  existingImgUrl?: string;
+};
 
 const emptyItem: MenuItemFormValues = {
   name: "",
   price: 0,
-  imgUrl: "",
+  imageFile: null,
   isActive: true,
   category: { name: "", id: "", isActive: false, menuItemsCount: 0 }
 };
@@ -114,9 +123,18 @@ const MenuEditorPage = () => {
   };
 
   const editMenu = async (formData: MenuEditValues) => {
+    const data = new FormData();
+    if (formData.id) data.append("id", formData.id);
+    data.append("name", formData.name);
+    data.append("description", formData.description);
+    data.append("isActive", String(formData.isActive));
+    data.append("type", formData.type);
+    data.append("restaurantId", formData.restaurantId ?? restaurantId);
+    appendFileIfSelected(data, formData.imageFile);
+
     await apiFetch("api/menus", {
       method: "PUT",
-      body: JSON.stringify(formData)
+      body: data
     })
 
     await fetchMenuData();
@@ -124,16 +142,17 @@ const MenuEditorPage = () => {
   };
 
   const addItem = async (formData: MenuItemFormValues) => {
+    const data = new FormData();
+    data.append("categoryId", formData.category.id);
+    data.append("menuId", menu.id);
+    data.append("name", formData.name);
+    data.append("price", String(formData.price));
+    data.append("isActive", String(formData.isActive));
+    appendFileIfSelected(data, formData.imageFile);
+
     const newItem = await apiFetch('api/menu-items', {
       method: "POST",
-      body: JSON.stringify({
-        categoryId: formData.category.id,
-        menuId: menu.id,
-        name: formData.name,
-        price: formData.price,
-        imgUrl: formData.imgUrl,
-        isActive: formData.isActive
-      })
+      body: data
     });
 
     if (newItem) {
@@ -144,16 +163,17 @@ const MenuEditorPage = () => {
   };
 
   const editItem = async (id: string, formData: MenuItemFormValues) => {
+    const data = new FormData();
+    data.append("id", id);
+    data.append("categoryId", formData.category.id);
+    data.append("name", formData.name);
+    data.append("price", String(formData.price));
+    data.append("isActive", String(formData.isActive));
+    appendFileIfSelected(data, formData.imageFile);
+
     await apiFetch('api/menu-items', {
       method: "PUT",
-      body: JSON.stringify({
-        id,
-        categoryId: formData.category.id,
-        name: formData.name,
-        price: formData.price,
-        imgUrl: formData.imgUrl,
-        isActive: formData.isActive
-      })
+      body: data
     });
 
     await fetchMenuItems();
@@ -233,12 +253,13 @@ const MenuEditorPage = () => {
           <MenuEditForm
             initial={{
               id: menu.id,
-              name: menu.name,
-              description: menu.description,
-              imgUrl: menu.imgUrl ?? "",
-              isActive: menu.isActive,
-              type: menu.type,
-              restaurantId: menu.restaurantId
+	              name: menu.name,
+	              description: menu.description,
+	              imageFile: null,
+                existingImgUrl: menu.imgUrl ?? "",
+	              isActive: menu.isActive,
+	              type: menu.type,
+	              restaurantId: menu.restaurantId
             }}
             onCancel={() => setMenuEditOpen(false)}
             onSubmit={editMenu}
@@ -260,11 +281,12 @@ const MenuEditorPage = () => {
         <ModalShell title={`Edit: ${itemEditTarget.name}`} onClose={() => setItemEditTarget(null)}>
           <MenuItemForm
             initial={{
-              name: itemEditTarget.name,
-              price: itemEditTarget.price,
-              imgUrl: itemEditTarget.imgUrl ?? "",
-              isActive: itemEditTarget.isActive,
-              category: itemEditTarget.category
+	              name: itemEditTarget.name,
+	              price: itemEditTarget.price,
+	              imageFile: null,
+                existingImgUrl: itemEditTarget.imgUrl ?? "",
+	              isActive: itemEditTarget.isActive,
+	              category: itemEditTarget.category
             }}
             categories={categories}
             submitLabel="Save"

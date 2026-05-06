@@ -12,6 +12,7 @@ import MenuEditForm from "../components/menus/MenuEditForm";
 import StatusPill from "../components/shared/StatusPill";
 import CategoriesSection from "../components/categories/CategoriesSection";
 import EmployeesSection from "../components/employees/EmployeesSection";
+import { appendFileIfSelected } from "../components/imageUpload";
 
 const cx = (...v: Array<string | false | undefined>) => v.filter(Boolean).join(" ");
 
@@ -66,9 +67,19 @@ const SingleRestaurantPage = () => {
     };
 
     const updateRestaurant = async (id: string, formData: RestaurantFormValues) => {
+        const data = new FormData();
+        data.append("id", id);
+        data.append("name", formData.name);
+        data.append("description", formData.description);
+        data.append("location", formData.location);
+        data.append("cuisine", formData.cuisine);
+        data.append("status", formData.status);
+        if (formData.ownerId) data.append("ownerId", formData.ownerId);
+        appendFileIfSelected(data, formData.imageFile);
+
         await apiFetch("api/restaurants", {
             method: "PUT",
-            body: JSON.stringify({ id, ...formData })
+            body: data
         });
 
         await fetchRestaurant();
@@ -84,9 +95,17 @@ const SingleRestaurantPage = () => {
     }
 
     const addMenu = async (formData: MenuForm) => {
+        const data = new FormData();
+        data.append("name", formData.name);
+        data.append("description", formData.description);
+        data.append("isActive", String(formData.isActive));
+        data.append("type", formData.type);
+        data.append("restaurantId", formData.restaurantId);
+        appendFileIfSelected(data, formData.imageFile);
+
         const menu: Menu = await apiFetch("api/menus", {
             method: "POST",
-            body: JSON.stringify(formData)
+            body: data
         });
         if (menu && restaurant) {
             const newData: RestaurantWithMenu = {
@@ -313,7 +332,7 @@ const SingleRestaurantPage = () => {
                             id: null,
                             name: "",
                             description: "",
-                            imgUrl: "",
+                            imageFile: null,
                             isActive: false,
                             type: "Default",
                             restaurantId: restaurantId as string

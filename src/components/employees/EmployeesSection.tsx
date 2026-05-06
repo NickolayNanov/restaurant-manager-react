@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import type {
     Employee,
     EmployeeDraft,
@@ -81,8 +81,6 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<Employee | null>(null);
 
-    const didInit = useRef(false);
-
     const fetchEmployeesPerRestaurant = async () => {
         const employeesResponse: ListEmployeesByRestaurantResponse = await apiFetch(`api/employees/per-restaurant/${restaurantId}`, {
             method: "GET"
@@ -103,10 +101,11 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
     };
 
     useEffect(() => {
-        if (didInit.current) return;
-        didInit.current = true;
+        const timer = window.setTimeout(() => {
+            void fetchEmployeesPerRestaurant();
+        }, 0);
 
-        void fetchEmployeesPerRestaurant();
+        return () => window.clearTimeout(timer);
     }, []);
 
     const roles = useMemo(() => {
@@ -270,7 +269,7 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
                             <label className="text-sm text-slate-500">Status</label>
                             <select
                                 value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value as any)}
+                                onChange={(e) => setStatusFilter(e.target.value as EmploymentStatus | "All")}
                                 className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100"
                             >
                                 <option value="All">All</option>
@@ -300,7 +299,7 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
                             <label className="text-sm text-slate-500">Sort</label>
                             <select
                                 value={sort}
-                                onChange={(e) => setSort(e.target.value as any)}
+                                onChange={(e) => setSort(e.target.value as "Name" | "SalaryHigh" | "Updated")}
                                 className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100"
                             >
                                 <option value="Name">Name</option>

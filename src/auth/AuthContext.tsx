@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useMemo, useState, useRef } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, useRef } from "react";
 import type { AuthState, LoginRequest, UserInfo } from "./types";
 import { apiFetch } from "../api/apiFetch";
 
@@ -15,26 +16,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const didInit = useRef(false);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     setIsLoading(true);
     try {
       const data: UserInfo = await apiFetch("api/users/user-info");
       setUser(data);
-    } catch (e: any) {
+    } catch {
       setUser(null);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (didInit.current) return;
     didInit.current = true;
 
     void refresh();
-  }, []);
+  }, [refresh]);
 
-  const login = async (req: LoginRequest) => {
+  const login = useCallback(async (req: LoginRequest) => {
     setIsLoading(true);
     try {
       await apiFetch("api/auth/login", {
@@ -46,9 +47,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [refresh]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     setIsLoading(true);
     try {
       await apiFetch("api/auth/logout", { method: "POST" });
@@ -56,7 +57,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -67,7 +68,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       logout,
       refresh,
     }),
-    [user, isLoading]
+    [user, isLoading, login, logout, refresh]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
