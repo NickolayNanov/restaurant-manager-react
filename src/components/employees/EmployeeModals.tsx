@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { EmployeeDraft, EmploymentType, EmploymentStatus } from "../../types/employees-types";
 import { classNames } from "../helper";
+import { IMAGE_ACCEPT, validateImageFile } from "../imageUpload";
 
 const Field: React.FC<{
     label: string;
@@ -28,14 +29,24 @@ const EmployeeModal: React.FC<{
     onSave: (draft: EmployeeDraft) => void;
 }> = ({ title, initial, onClose, onSave }) => {
     const [data, setData] = useState<EmployeeDraft>(initial);
+    const [previewUrl, setPreviewUrl] = useState(initial.existingImgUrl ?? "");
+    const [imageError, setImageError] = useState<string | null>(null);
 
     const salaryIsValid = data.salary.trim() !== "" && !Number.isNaN(Number(data.salary)) && Number(data.salary) >= 0;
+    const imageIsValid = Boolean(data.imageFile || data.existingImgUrl) && !imageError;
     const canSave = data.name.trim()
         && data.position.trim()
         && data.email.trim()
         && data.phoneNumber.trim()
         && data.employmentType.trim()
-        && salaryIsValid;
+        && salaryIsValid
+        && imageIsValid;
+
+    useEffect(() => {
+        setData(initial);
+        setPreviewUrl(initial.existingImgUrl ?? "");
+        setImageError(null);
+    }, [initial]);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -152,6 +163,42 @@ const EmployeeModal: React.FC<{
                             <div className="mt-1 text-xs text-red-600">Please enter a valid salary amount.</div>
                         )}
                     </Field>
+
+                    <div className="md:col-span-2">
+                        <Field label="Profile image" required>
+                            <div className="mt-1 flex flex-col gap-3 sm:flex-row sm:items-center">
+                                <div className="h-20 w-20 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
+                                    {previewUrl ? (
+                                        <img src={previewUrl} alt={data.name || "Employee"} className="h-full w-full object-cover" />
+                                    ) : (
+                                        <div className="h-full w-full bg-slate-200" />
+                                    )}
+                                </div>
+                                <div className="flex-1">
+                                    <input
+                                        type="file"
+                                        accept={IMAGE_ACCEPT}
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0] ?? null;
+                                            const nextImageError = validateImageFile(file);
+
+                                            setImageError(nextImageError);
+                                            setData((p) => ({ ...p, imageFile: file }));
+                                            setPreviewUrl(file ? URL.createObjectURL(file) : data.existingImgUrl ?? "");
+                                        }}
+                                        className={classNames(
+                                            "w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200 focus:outline-none focus:ring-2",
+                                            imageError ? "border-red-200 focus:border-red-300 focus:ring-red-100" : "border-slate-200 focus:border-blue-300 focus:ring-blue-100"
+                                        )}
+                                    />
+                                    {imageError && <div className="mt-1 text-xs text-red-600">{imageError}</div>}
+                                    {!data.imageFile && !data.existingImgUrl && (
+                                        <div className="mt-1 text-xs text-red-600">Please select an employee image.</div>
+                                    )}
+                                </div>
+                            </div>
+                        </Field>
+                    </div>
                 </div>
 
                 <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-5 py-4">

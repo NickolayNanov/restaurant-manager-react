@@ -1,5 +1,4 @@
-/* eslint-disable react-hooks/set-state-in-effect */
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import CategoryModal from "./CategoryModal";
 import { classNames } from "../helper";
 import IconDots from "./IconDots";
@@ -16,7 +15,7 @@ const CategoriesSection: React.FC = () => {
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<Category | null>(null);
 
-    const fetchCategoriesData = async () => {
+    const fetchCategoriesData = useCallback(async () => {
         const categoriesData: ListAllCategoriesApiResponse = await apiFetch("api/categories", {
             method: "GET"
         })
@@ -24,16 +23,15 @@ const CategoriesSection: React.FC = () => {
         if (categoriesData) {
             setCategories(categoriesData.categories);
         }
-    };
-
-    const didInit = useRef(false);
+    }, []);
 
     useEffect(() => {
-        if (didInit.current) return;
-        didInit.current = true;
+        const timer = window.setTimeout(() => {
+            void fetchCategoriesData();
+        }, 0);
 
-        void fetchCategoriesData();
-    }, []);
+        return () => window.clearTimeout(timer);
+    }, [fetchCategoriesData]);
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -41,8 +39,7 @@ const CategoriesSection: React.FC = () => {
         let list = categories.filter((c) => {
             if (!q) return true;
             return (
-                c.name.toLowerCase().includes(q) ||
-                (c.name ?? "").toLowerCase().includes(q)
+                c.name.toLowerCase().includes(q)
             );
         });
 

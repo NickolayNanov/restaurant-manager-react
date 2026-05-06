@@ -1,6 +1,5 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 import { Pencil, Trash2, RefreshCw, MapPin, UtensilsCrossed, Plus, ArrowRight } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { apiFetch } from "../api/apiFetch";
 import type { RestaurantFormValues, RestaurantWithMenu, SingleRestaurantApiResponse } from "../types/restaurants-types";
@@ -26,9 +25,7 @@ const SingleRestaurantPage = () => {
 
     const [createMenuModalVisible, setCreateMenuModalVisible] = useState<boolean>(false);
 
-    const didInit = useRef(false);
-
-    const fetchRestaurant = async () => {
+    const fetchRestaurant = useCallback(async () => {
         const restaurantData: SingleRestaurantApiResponse = await apiFetch(`api/restaurants/${restaurantId}`, {
             method: "GET"
         });
@@ -36,14 +33,15 @@ const SingleRestaurantPage = () => {
         if (restaurantData) {
             setRestaurant(restaurantData);
         }
-    }
+    }, [restaurantId]);
 
     useEffect(() => {
-        if (didInit.current) return;
-        didInit.current = true;
+        const timer = window.setTimeout(() => {
+            void fetchRestaurant();
+        }, 0);
 
-        void fetchRestaurant();
-    }, []);
+        return () => window.clearTimeout(timer);
+    }, [fetchRestaurant]);
 
     const activeMenu = useMemo(() => {
         if (!restaurant) return null;
@@ -169,7 +167,7 @@ const SingleRestaurantPage = () => {
                     <button
                         onClick={fetchRestaurant}
                         className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                        title="Refresh dummy data"
+                        title="Refresh"
                     >
                         <RefreshCw className="h-4 w-4" />
                     </button>

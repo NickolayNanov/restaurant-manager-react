@@ -8,6 +8,8 @@ export type EmployeeDraft = {
     salary: string; // keep as string in input
     currency: 'EUR';
     createdAt: string;
+    imageFile: File | null;
+    existingImgUrl?: string;
 };
 
 export type EmploymentStatus = "Active" | "OnLeave" | "Paused" | "Inactive";
@@ -26,6 +28,7 @@ export type Employee = {
 
     salary: number;
     currency: 'EUR';
+    imgUrl: string;
 
     createdAt?: string; // ISO date string
     updatedAt: string; // "2 days ago" for UI
@@ -40,6 +43,7 @@ export type EmployeeBase = {
     email: string;
     position: string;
     employmentType: EmploymentType;
+    status: EmploymentStatus;
     salary: number;
     phoneNumber: string;
 }
@@ -51,16 +55,9 @@ export type GetEmployeeByIdResponse = EmployeeBase & {
     createdBy: string;
     updatedAt: string | null;
     updatedBy: string;
+    imgUrl: string;
 }
 
 export type ListEmployeesByRestaurantResponse = {
     employees : GetEmployeeByIdResponse[]
 }
-
-export type CreateEmployeeRequest = EmployeeBase & {
-    restaurantId: string|null;
-};
-
-export type UpdateEmployeeRequest = EmployeeBase & {
-    id: string|null;
-};

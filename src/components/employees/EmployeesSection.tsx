@@ -1,18 +1,17 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import type {
     Employee,
     EmployeeDraft,
     EmployeesSectionProps,
     EmploymentStatus,
-    ListEmployeesByRestaurantResponse,
-    CreateEmployeeRequest,
-    UpdateEmployeeRequest
+    ListEmployeesByRestaurantResponse
 } from "../../types/employees-types";
 import { classNames, formatSalary, statusBadge } from "../helper";
 import EmployeeModal from "./EmployeeModals";
 import { apiFetch } from "../../api/apiFetch";
 import IconPlus from "../categories/IconPlus";
 import IconSearch from "../categories/IconSearch";
+import { appendFileIfSelected } from "../imageUpload";
 
 const sampleEmployees: Employee[] = [
     {
@@ -25,6 +24,7 @@ const sampleEmployees: Employee[] = [
         status: "Active",
         salary: 3200,
         currency: "EUR",
+        imgUrl: "",
         createdAt: "2024-09-01",
         updatedAt: "2 days ago",
     },
@@ -38,6 +38,7 @@ const sampleEmployees: Employee[] = [
         status: "OnLeave",
         salary: 2800,
         currency: "EUR",
+        imgUrl: "",
         createdAt: "2023-03-15",
         updatedAt: "1 week ago",
     },
@@ -51,6 +52,7 @@ const sampleEmployees: Employee[] = [
         status: "Paused",
         salary: 18,
         currency: "EUR",
+        imgUrl: "",
         createdAt: "2025-06-10",
         updatedAt: "3 weeks ago",
     },
@@ -66,6 +68,8 @@ const defaultDraft: EmployeeDraft = {
     salary: '0',
     currency: "EUR",
     createdAt: "",
+    imageFile: null,
+    existingImgUrl: "",
 };
 
 const EmployeesSection: React.FC<EmployeesSectionProps> = ({
@@ -81,7 +85,7 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<Employee | null>(null);
 
-    const fetchEmployeesPerRestaurant = async () => {
+    const fetchEmployeesPerRestaurant = useCallback(async () => {
         const employeesResponse: ListEmployeesByRestaurantResponse = await apiFetch(`api/employees/per-restaurant/${restaurantId}`, {
             method: "GET"
         });
@@ -90,15 +94,16 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
             setEmployees(
                 (employeesResponse?.employees ?? []).map((e): Employee => ({
                     ...e,
-                    status: "Active",
+                    status: e.status ?? "Active",
                     currency: "EUR",
+                    imgUrl: e.imgUrl ?? "",
                     updatedAt: e.updatedAt
                         ? new Date(e.updatedAt).toLocaleDateString()
                         : "N/A",
                 }))
             );
         }
-    };
+    }, [restaurantId]);
 
     useEffect(() => {
         const timer = window.setTimeout(() => {
@@ -106,7 +111,7 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
         }, 0);
 
         return () => window.clearTimeout(timer);
-    }, []);
+    }, [fetchEmployeesPerRestaurant]);
 
     const roles = useMemo(() => {
         const distinct = Array.from(new Set(employees.map((e) => e.position))).sort((a, b) =>
@@ -167,12 +172,12 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
         if (editing) {
             await apiFetch('api/employees', {
                 method: "PUT",
-                body: JSON.stringify(draftToUpdateEmployeeRequest(draft, editing.id))
+                body: draftToUpdateEmployeeFormData(draft, editing.id)
             });
         } else {
             await apiFetch('api/employees', {
                 method: "POST",
-                body: JSON.stringify(draftToCreateEmployeeRequest(draft, restaurantId))
+                body: draftToCreateEmployeeFormData(draft, restaurantId)
             });
         }
 
@@ -181,25 +186,30 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
         setEditing(null);
     };
 
-    const draftToCreateEmployeeRequest = (draft: EmployeeDraft, restaurantId: string | null): CreateEmployeeRequest => ({
-        name: draft.name.trim(),
-        email: draft.email.trim(),
-        phoneNumber: draft.phoneNumber.trim(),
-        position: draft.position.trim(),
-        employmentType: draft.employmentType,
-        salary: Number(draft.salary),
-        restaurantId,
-    });
+    const appendEmployeeFields = (formData: FormData, draft: EmployeeDraft) => {
+        formData.append("name", draft.name.trim());
+        formData.append("email", draft.email.trim());
+        formData.append("phoneNumber", draft.phoneNumber.trim());
+        formData.append("position", draft.position.trim());
+        formData.append("employmentType", draft.employmentType);
+        formData.append("status", draft.status);
+        formData.append("salary", String(Number(draft.salary)));
+        appendFileIfSelected(formData, draft.imageFile);
+    };
 
-    const draftToUpdateEmployeeRequest = (draft: EmployeeDraft, id: string | null): UpdateEmployeeRequest => ({
-        name: draft.name.trim(),
-        email: draft.email.trim(),
-        phoneNumber: draft.phoneNumber.trim(),
-        position: draft.position.trim(),
-        employmentType: draft.employmentType,
-        salary: Number(draft.salary),
-        id,
-    });
+    const draftToCreateEmployeeFormData = (draft: EmployeeDraft, restaurantId: string | null) => {
+        const formData = new FormData();
+        appendEmployeeFields(formData, draft);
+        if (restaurantId) formData.append("restaurantId", restaurantId);
+        return formData;
+    };
+
+    const draftToUpdateEmployeeFormData = (draft: EmployeeDraft, id: string | null) => {
+        const formData = new FormData();
+        appendEmployeeFields(formData, draft);
+        if (id) formData.append("id", id);
+        return formData;
+    };
 
     const employeeToDraft = (e: Employee | null): EmployeeDraft => {
         if (!e) return { ...defaultDraft };
@@ -214,6 +224,8 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
             salary: String(e.salary ?? ""),
             currency: e.currency ?? "EUR",
             createdAt: e.createdAt ?? "",
+            imageFile: null,
+            existingImgUrl: e.imgUrl ?? "",
         };
     };
 
@@ -228,18 +240,7 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
                     </p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                        onClick={() => {
-                            // optional: wire to "Invite employee" flow later
-                            openCreate();
-                        }}
-                    >
-                        Invite
-                    </button>
-
+                <div className="flex items-center">
                     <button
                         type="button"
                         onClick={openCreate}
@@ -307,18 +308,6 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
                                 <option value="Updated">Updated</option>
                             </select>
                         </div>
-
-                        <button
-                            type="button"
-                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                            onClick={() => {
-                                // optional: export CSV later
-                                // For now, quick demo:
-                                console.log("Export:", employees);
-                            }}
-                        >
-                            Export
-                        </button>
                     </div>
                 </div>
 
@@ -365,7 +354,11 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
                                         {/* Employee */}
                                         <div className="sm:col-span-4">
                                             <div className="flex items-start gap-3">
-                                                <div className="mt-0.5 h-10 w-10 rounded-full bg-slate-200" />
+                                                <div className="mt-0.5 h-10 w-10 overflow-hidden rounded-full bg-slate-200">
+                                                    {e.imgUrl ? (
+                                                        <img src={e.imgUrl} alt={e.name} className="h-full w-full object-cover" />
+                                                    ) : null}
+                                                </div>
                                                 <div className="min-w-0">
                                                     <div className="truncate text-sm font-semibold text-slate-900">
                                                         {e.name}

@@ -1,5 +1,4 @@
-/* eslint-disable react-hooks/immutability */
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -63,18 +62,7 @@ const MenuEditorPage = () => {
   const [itemDeleteTarget, setItemDeleteTarget] = useState<MenuItem | null>(null);
   const [menuDeleteOpen, setMenuDeleteOpen] = useState<boolean>(false);
 
-  const didInit = useRef(false);
-
-  useEffect(() => {
-    if (didInit.current) return;
-    didInit.current = true;
-
-    void fetchRestaurantData();
-    void fetchMenuData();
-    void fetchCategoriesData();
-  }, []);
-
-  const fetchMenuData = async () => {
+  const fetchMenuData = useCallback(async () => {
     const menuData: MenuWithItems = await apiFetch(`api/menus/${menuId}`, {
       method: "GET"
     })
@@ -82,9 +70,9 @@ const MenuEditorPage = () => {
     if (menuData) {
       setMenu(menuData);
     }
-  };
+  }, [menuId]);
 
-  const fetchRestaurantData = async () => {
+  const fetchRestaurantData = useCallback(async () => {
     const restaurantData: SingleRestaurantApiResponse = await apiFetch(`api/restaurants/${restaurantId}`, {
       method: "GET"
     })
@@ -92,7 +80,7 @@ const MenuEditorPage = () => {
     if (restaurantData) {
       setRestaurant(restaurantData);
     }
-  };
+  }, [restaurantId]);
 
   const fetchMenuItems = async () => {
     const data = await apiFetch(`api/menu-items/by-menu/${menuId}`, {
@@ -100,11 +88,11 @@ const MenuEditorPage = () => {
     })
 
     if (data) {
-      setMenu({ ...menu, items: data.menuItems });
+      setMenu((current) => ({ ...current, items: data.menuItems }));
     }
   };
 
-  const fetchCategoriesData = async () => {
+  const fetchCategoriesData = useCallback(async () => {
     const categoriesData: ListAllCategoriesApiResponse = await apiFetch("api/categories", {
       method: "GET"
     })
@@ -112,7 +100,17 @@ const MenuEditorPage = () => {
     if (categoriesData) {
       setCategories(categoriesData.categories);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchRestaurantData();
+      void fetchMenuData();
+      void fetchCategoriesData();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [fetchRestaurantData, fetchMenuData, fetchCategoriesData]);
 
   const deleteMenu = async (menuId: string) => {
     await apiFetch(`api/menus/${menuId}`, {
@@ -230,7 +228,7 @@ const MenuEditorPage = () => {
           <button
             onClick={fetchMenuData}
             className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            title="Refresh dummy data"
+            title="Refresh"
           >
             <RefreshCw className="h-4 w-4" />
           </button>
