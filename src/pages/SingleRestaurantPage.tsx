@@ -12,6 +12,7 @@ import StatusPill from "../components/shared/StatusPill";
 import CategoriesSection from "../components/categories/CategoriesSection";
 import EmployeesSection from "../components/employees/EmployeesSection";
 import { appendFileIfSelected } from "../components/imageUpload";
+import MonthlyReportsSection from "../components/restaurants/MonthlyReportsSection";
 
 const cx = (...v: Array<string | false | undefined>) => v.filter(Boolean).join(" ");
 
@@ -322,6 +323,8 @@ const SingleRestaurantPage = () => {
                     </div>
                 )}
             </section>
+
+            <MonthlyReportsSection restaurantId={restaurantId as string} />
 
             <CategoriesSection />
 
