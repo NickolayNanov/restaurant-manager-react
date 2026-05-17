@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { EmployeeDraft, EmploymentType, EmploymentStatus } from "../../types/employees-types";
 import { classNames } from "../helper";
 import { IMAGE_ACCEPT, validateImageFile } from "../imageUpload";
+import { getApiErrorMessages } from "../../api/apiFetch";
+import FormErrorSummary from "../shared/FormErrorSummary";
 
 const Field: React.FC<{
     label: string;
@@ -26,11 +28,13 @@ const EmployeeModal: React.FC<{
     title: string;
     initial: EmployeeDraft;
     onClose: () => void;
-    onSave: (draft: EmployeeDraft) => void;
+    onSave: (draft: EmployeeDraft) => Promise<void>;
 }> = ({ title, initial, onClose, onSave }) => {
     const [data, setData] = useState<EmployeeDraft>(initial);
     const [previewUrl, setPreviewUrl] = useState(initial.existingImgUrl ?? "");
     const [imageError, setImageError] = useState<string | null>(null);
+    const [apiErrors, setApiErrors] = useState<string[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
 
     const salaryIsValid = data.salary.trim() !== "" && !Number.isNaN(Number(data.salary)) && Number(data.salary) >= 0;
     const imageIsValid = Boolean(data.imageFile || data.existingImgUrl) && !imageError;
@@ -41,6 +45,18 @@ const EmployeeModal: React.FC<{
         && data.employmentType.trim()
         && salaryIsValid
         && imageIsValid;
+
+    const handleSave = async () => {
+        setApiErrors([]);
+        setIsSaving(true);
+        try {
+            await onSave(data);
+        } catch (error) {
+            setApiErrors(getApiErrorMessages(error, "Employee could not be saved."));
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -64,6 +80,10 @@ const EmployeeModal: React.FC<{
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 px-5 py-4 md:grid-cols-2">
+                    <div className="md:col-span-2">
+                        <FormErrorSummary messages={apiErrors} />
+                    </div>
+
                     <Field label="Full name" required>
                         <input
                             value={data.name}
@@ -205,11 +225,11 @@ const EmployeeModal: React.FC<{
                     </button>
                     <button
                         type="button"
-                        disabled={!canSave}
-                        onClick={() => onSave(data)}
+                        disabled={!canSave || isSaving}
+                        onClick={handleSave}
                         className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                        Save
+                        {isSaving ? "Saving..." : "Save"}
                     </button>
                 </div>
             </div>

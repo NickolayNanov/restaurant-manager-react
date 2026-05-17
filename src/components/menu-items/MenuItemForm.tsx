@@ -3,6 +3,8 @@ import { type MenuItemFormValues } from "../../pages/MenuEditorPage";
 import type { Category } from "../../types/categories-types";
 import { cx } from "../helper";
 import { IMAGE_ACCEPT, validateImageFile } from "../imageUpload";
+import { getApiErrorMessages } from "../../api/apiFetch";
+import FormErrorSummary from "../shared/FormErrorSummary";
 
 const MenuItemForm = ({
   initial,
@@ -15,10 +17,11 @@ const MenuItemForm = ({
   categories: Category[];
   submitLabel: string;
   onCancel: () => void;
-  onSubmit: (v: MenuItemFormValues) => void;
+  onSubmit: (v: MenuItemFormValues) => Promise<void>;
 }) => {
   const [v, setV] = useState<MenuItemFormValues>(initial);
   const [err, setErr] = useState<Record<string, string>>({});
+  const [apiErrors, setApiErrors] = useState<string[]>([]);
   const [previewUrl, setPreviewUrl] = useState(initial.existingImgUrl ?? "");
 
   useEffect(() => {
@@ -38,26 +41,33 @@ const MenuItemForm = ({
     return e;
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setApiErrors([]);
     const eMap = validate(v);
     setErr(eMap);
     if (Object.keys(eMap).length) return;
 
-    onSubmit({
-      name: v.name.trim(),
-      price: Number(v.price),
-      imageFile: v.imageFile,
-      existingImgUrl: v.existingImgUrl,
-      isActive: v.isActive,
-      category: {
-        ...v.category
-      }
-    });
+    try {
+      await onSubmit({
+        name: v.name.trim(),
+        price: Number(v.price),
+        imageFile: v.imageFile,
+        existingImgUrl: v.existingImgUrl,
+        isActive: v.isActive,
+        category: {
+          ...v.category
+        }
+      });
+    } catch (error) {
+      setApiErrors(getApiErrorMessages(error, "Menu item could not be saved."));
+    }
   };
 
   return (
     <form className="space-y-4" onSubmit={submit}>
+      <FormErrorSummary messages={apiErrors} />
+
       <div>
         <label className="text-xs font-medium text-slate-700">Name</label>
         <input

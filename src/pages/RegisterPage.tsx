@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { getApiErrorMessages, isApiError } from "../api/apiFetch";
+import FormErrorSummary from "../components/shared/FormErrorSummary";
 
 const RegisterPage = () => {
   const { register } = useAuth();
@@ -10,15 +12,15 @@ const RegisterPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setErrors([]);
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+      setErrors(["Passwords do not match."]);
       return;
     }
 
@@ -30,7 +32,11 @@ const RegisterPage = () => {
         state: { message: "Account created. Please sign in." },
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      setErrors(
+        isApiError(err) && err.isValidationError
+          ? getApiErrorMessages(err, "Please review your registration details.")
+          : ["Registration failed. Please review your details."]
+      );
     } finally {
       setBusy(false);
     }
@@ -96,11 +102,7 @@ const RegisterPage = () => {
               />
             </div>
 
-            {error && (
-              <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                {error}
-              </div>
-            )}
+            <FormErrorSummary messages={errors} />
 
             <button
               disabled={busy}

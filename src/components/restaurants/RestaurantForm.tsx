@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import type { RestaurantFormValues, RestaurantStatus } from "../../types/restaurants-types";
 import { classNames } from "../helper";
 import { IMAGE_ACCEPT, validateImageFile } from "../imageUpload";
+import { getApiErrorMessages } from "../../api/apiFetch";
+import FormErrorSummary from "../shared/FormErrorSummary";
 
 const RestaurantForm = ({
   initial,
@@ -16,6 +18,7 @@ const RestaurantForm = ({
 }) => {
   const [form, setForm] = useState<RestaurantFormValues>(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiErrors, setApiErrors] = useState<string[]>([]);
   const [previewUrl, setPreviewUrl] = useState(initial.existingImgUrl ?? "");
 
   useEffect(() => {
@@ -38,14 +41,21 @@ const RestaurantForm = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setApiErrors([]);
     const eMap = validate(form);
     setErrors(eMap);
     if (Object.keys(eMap).length > 0) return;
-    await onSubmit(form);
+    try {
+      await onSubmit(form);
+    } catch (err) {
+      setApiErrors(getApiErrorMessages(err, "Restaurant could not be saved."));
+    }
   }
 
   return (
     <form className="space-y-4" onSubmit={handleSubmit}>
+      <FormErrorSummary messages={apiErrors} />
+
       <div>
         <label className="text-xs font-medium text-slate-700">Name</label>
         <input
@@ -72,7 +82,7 @@ const RestaurantForm = ({
           onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
           placeholder="e.g. Bella Italia"
         />
-        {errors.name && <div className="mt-1 text-xs text-rose-600">{errors.description}</div>}
+        {errors.description && <div className="mt-1 text-xs text-rose-600">{errors.description}</div>}
       </div>
 
       <div>

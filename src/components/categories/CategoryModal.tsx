@@ -1,14 +1,30 @@
 import { useState } from "react";
 import { classNames } from "../helper";
+import { getApiErrorMessages } from "../../api/apiFetch";
+import FormErrorSummary from "../shared/FormErrorSummary";
 
 const CategoryModal: React.FC<{
     title: string;
     initial: { name: string; isActive: boolean };
     onClose: () => void;
-    onSave: (payload: { name: string; isActive: boolean }) => void;
+    onSave: (payload: { name: string; isActive: boolean }) => Promise<void>;
 }> = ({ title, initial, onClose, onSave }) => {
     const [name, setName] = useState(initial.name);
     const [isActive, setIsVisible] = useState(initial.isActive);
+    const [apiErrors, setApiErrors] = useState<string[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleSave = async () => {
+        setApiErrors([]);
+        setIsSaving(true);
+        try {
+            await onSave({ name: name.trim(), isActive });
+        } catch (error) {
+            setApiErrors(getApiErrorMessages(error, "Category could not be saved."));
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -38,6 +54,8 @@ const CategoryModal: React.FC<{
                 </div>
 
                 <div className="space-y-4 px-5 py-4">
+                    <FormErrorSummary messages={apiErrors} />
+
                     <div>
                         <label className="text-sm font-medium text-slate-700">Name</label>
                         <input
@@ -79,11 +97,11 @@ const CategoryModal: React.FC<{
                     </button>
                     <button
                         type="button"
-                        disabled={!name.trim()}
-                        onClick={() => onSave({ name: name.trim(), isActive })}
+                        disabled={!name.trim() || isSaving}
+                        onClick={handleSave}
                         className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                        Save
+                        {isSaving ? "Saving..." : "Save"}
                     </button>
                 </div>
             </div>

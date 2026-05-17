@@ -40,4 +40,5 @@ export type UserInfo = {
     username: string;
     email: string;
     roles: string[];
+    profilePictureUrl: string | null;
 }

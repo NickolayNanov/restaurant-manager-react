@@ -11,7 +11,7 @@ import type { MenuWithItems } from "../types/menu-types";
 import ModalShell from "../components/modals/ModalShell";
 import MenuItemForm from "../components/menu-items/MenuItemForm";
 import MenuEditForm from "../components/menus/MenuEditForm";
-import { apiFetch } from "../api/apiFetch";
+import { apiFetch, getApiErrorMessages } from "../api/apiFetch";
 import { type Category, type ListAllCategoriesApiResponse } from "../types/categories-types";
 import MenuItemsSection from "../components/menu-items/MenuItemsSection";
 import MenuInfoCard from "../components/menus/MenuInfoCard";
@@ -61,24 +61,34 @@ const MenuEditorPage = () => {
   const [itemEditTarget, setItemEditTarget] = useState<MenuItem | null>(null);
   const [itemDeleteTarget, setItemDeleteTarget] = useState<MenuItem | null>(null);
   const [menuDeleteOpen, setMenuDeleteOpen] = useState<boolean>(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchMenuData = useCallback(async () => {
-    const menuData: MenuWithItems = await apiFetch(`api/menus/${menuId}`, {
-      method: "GET"
-    })
+    try {
+      setLoadError(null);
+      const menuData: MenuWithItems = await apiFetch(`api/menus/${menuId}`, {
+        method: "GET"
+      })
 
-    if (menuData) {
-      setMenu(menuData);
+      if (menuData) {
+        setMenu(menuData);
+      }
+    } catch (error) {
+      setLoadError(getApiErrorMessages(error, "Menu could not be loaded.")[0]);
     }
   }, [menuId]);
 
   const fetchRestaurantData = useCallback(async () => {
-    const restaurantData: SingleRestaurantApiResponse = await apiFetch(`api/restaurants/${restaurantId}`, {
-      method: "GET"
-    })
+    try {
+      const restaurantData: SingleRestaurantApiResponse = await apiFetch(`api/restaurants/${restaurantId}`, {
+        method: "GET"
+      })
 
-    if (restaurantData) {
-      setRestaurant(restaurantData);
+      if (restaurantData) {
+        setRestaurant(restaurantData);
+      }
+    } catch (error) {
+      setLoadError(getApiErrorMessages(error, "Restaurant could not be loaded.")[0]);
     }
   }, [restaurantId]);
 
@@ -93,12 +103,16 @@ const MenuEditorPage = () => {
   };
 
   const fetchCategoriesData = useCallback(async () => {
-    const categoriesData: ListAllCategoriesApiResponse = await apiFetch("api/categories", {
-      method: "GET"
-    })
+    try {
+      const categoriesData: ListAllCategoriesApiResponse = await apiFetch("api/categories", {
+        method: "GET"
+      })
 
-    if (categoriesData) {
-      setCategories(categoriesData.categories);
+      if (categoriesData) {
+        setCategories(categoriesData.categories);
+      }
+    } catch (error) {
+      setLoadError(getApiErrorMessages(error, "Categories could not be loaded.")[0]);
     }
   }, []);
 
@@ -113,11 +127,15 @@ const MenuEditorPage = () => {
   }, [fetchRestaurantData, fetchMenuData, fetchCategoriesData]);
 
   const deleteMenu = async (menuId: string) => {
-    await apiFetch(`api/menus/${menuId}`, {
-      method: "DELETE"
-    });
+    try {
+      await apiFetch(`api/menus/${menuId}`, {
+        method: "DELETE"
+      });
 
-    navigate('../..', { relative: 'path' });
+      navigate('../..', { relative: 'path' });
+    } catch {
+      // apiFetch owns non-form error toasts.
+    }
   };
 
   const editMenu = async (formData: MenuEditValues) => {
@@ -132,7 +150,8 @@ const MenuEditorPage = () => {
 
     await apiFetch("api/menus", {
       method: "PUT",
-      body: data
+      body: data,
+      showToast: false,
     })
 
     await fetchMenuData();
@@ -150,7 +169,8 @@ const MenuEditorPage = () => {
 
     const newItem = await apiFetch('api/menu-items', {
       method: "POST",
-      body: data
+      body: data,
+      showToast: false,
     });
 
     if (newItem) {
@@ -171,7 +191,8 @@ const MenuEditorPage = () => {
 
     await apiFetch('api/menu-items', {
       method: "PUT",
-      body: data
+      body: data,
+      showToast: false,
     });
 
     await fetchMenuItems();
@@ -179,16 +200,26 @@ const MenuEditorPage = () => {
   };
 
   const deleteItem = async (id: string) => {
-    await apiFetch(`api/menu-items/${id}`, {
-      method: "DELETE"
-    });
+    try {
+      await apiFetch(`api/menu-items/${id}`, {
+        method: "DELETE"
+      });
 
-    await fetchMenuItems();
-    setItemDeleteTarget(null);
+      await fetchMenuItems();
+      setItemDeleteTarget(null);
+    } catch {
+      // apiFetch owns non-form error toasts.
+    }
   };
 
   return (
     <div className="space-y-4">
+      {loadError && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {loadError}
+        </div>
+      )}
+
       {/* Breadcrumb + header */}
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>

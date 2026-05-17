@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import type { MenuForm, MenuType } from "../../types/menu-types";
 import { cx } from "../helper";
 import { IMAGE_ACCEPT, validateImageFile } from "../imageUpload";
+import { getApiErrorMessages } from "../../api/apiFetch";
+import FormErrorSummary from "../shared/FormErrorSummary";
 
 const MenuEditForm = ({
   initial,
@@ -14,6 +16,7 @@ const MenuEditForm = ({
 }) => {
   const [form, setForm] = useState<MenuForm>(initial);
   const [err, setErr] = useState<Record<string, string>>({});
+  const [apiErrors, setApiErrors] = useState<string[]>([]);
   const [previewUrl, setPreviewUrl] = useState(initial.existingImgUrl ?? "");
 
   useEffect(() => {
@@ -35,14 +38,21 @@ const MenuEditForm = ({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setApiErrors([]);
     const eMap = validate(form);
     setErr(eMap);
     if (Object.keys(eMap).length) return;
-    await onSubmit(form);
+    try {
+      await onSubmit(form);
+    } catch (error) {
+      setApiErrors(getApiErrorMessages(error, "Menu could not be saved."));
+    }
   };
 
   return (
     <form className="space-y-4" onSubmit={submit}>
+      <FormErrorSummary messages={apiErrors} />
+
       <div>
         <label className="text-xs font-medium text-slate-700">Name</label>
         <input

@@ -8,7 +8,7 @@ import type {
 } from "../../types/employees-types";
 import { classNames, formatSalary, statusBadge } from "../helper";
 import EmployeeModal from "./EmployeeModals";
-import { apiFetch } from "../../api/apiFetch";
+import { apiFetch, getApiErrorMessages } from "../../api/apiFetch";
 import IconPlus from "../categories/IconPlus";
 import IconSearch from "../categories/IconSearch";
 import { appendFileIfSelected } from "../imageUpload";
@@ -84,24 +84,30 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
 
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<Employee | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     const fetchEmployeesPerRestaurant = useCallback(async () => {
-        const employeesResponse: ListEmployeesByRestaurantResponse = await apiFetch(`api/employees/per-restaurant/${restaurantId}`, {
-            method: "GET"
-        });
+        try {
+            setLoadError(null);
+            const employeesResponse: ListEmployeesByRestaurantResponse = await apiFetch(`api/employees/per-restaurant/${restaurantId}`, {
+                method: "GET"
+            });
 
-        if (employeesResponse) {
-            setEmployees(
-                (employeesResponse?.employees ?? []).map((e): Employee => ({
-                    ...e,
-                    status: e.status ?? "Active",
-                    currency: "EUR",
-                    imgUrl: e.imgUrl ?? "",
-                    updatedAt: e.updatedAt
-                        ? new Date(e.updatedAt).toLocaleDateString()
-                        : "N/A",
-                }))
-            );
+            if (employeesResponse) {
+                setEmployees(
+                    (employeesResponse?.employees ?? []).map((e): Employee => ({
+                        ...e,
+                        status: e.status ?? "Active",
+                        currency: "EUR",
+                        imgUrl: e.imgUrl ?? "",
+                        updatedAt: e.updatedAt
+                            ? new Date(e.updatedAt).toLocaleDateString()
+                            : "N/A",
+                    }))
+                );
+            }
+        } catch (error) {
+            setLoadError(getApiErrorMessages(error, "Employees could not be loaded.")[0]);
         }
     }, [restaurantId]);
 
@@ -159,10 +165,14 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
     };
 
     const removeEmployee = async (id: string) => {
-        await apiFetch(`api/employees/${id}`, {
-            method: "DELETE"
-        });
-        await fetchEmployeesPerRestaurant();
+        try {
+            await apiFetch(`api/employees/${id}`, {
+                method: "DELETE"
+            });
+            await fetchEmployeesPerRestaurant();
+        } catch {
+            // apiFetch owns non-form error toasts.
+        }
     };
 
     const saveEmployee = async (draft: EmployeeDraft) => {
@@ -172,12 +182,14 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
         if (editing) {
             await apiFetch('api/employees', {
                 method: "PUT",
-                body: draftToUpdateEmployeeFormData(draft, editing.id)
+                body: draftToUpdateEmployeeFormData(draft, editing.id),
+                showToast: false,
             });
         } else {
             await apiFetch('api/employees', {
                 method: "POST",
-                body: draftToCreateEmployeeFormData(draft, restaurantId)
+                body: draftToCreateEmployeeFormData(draft, restaurantId),
+                showToast: false,
             });
         }
 
@@ -254,6 +266,12 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
 
             {/* Toolbar */}
             <div className="px-6 py-4">
+                {loadError && (
+                    <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        {loadError}
+                    </div>
+                )}
+
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="relative w-full lg:max-w-md">
                         <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />

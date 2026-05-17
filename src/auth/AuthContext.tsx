@@ -1,7 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import type { AuthState, LoginRequest, RegisterRequest, UserInfo } from "./types";
-import { apiFetch } from "../api/apiFetch";
+import { apiFetch, SESSION_EXPIRED_EVENT } from "../api/apiFetch";
 
 type AuthContextValue = AuthState & {
     login: (req: LoginRequest) => Promise<void>;
@@ -15,13 +16,17 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   const didInit = useRef(false);
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data: UserInfo = await apiFetch("api/users/user-info");
+      const data: UserInfo = await apiFetch("api/users/user-info", {
+        authMode: "silent",
+        showToast: false,
+      });
       setUser(data);
     } catch {
       setUser(null);
@@ -37,12 +42,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setUser(null);
+      setIsLoading(false);
+      navigate("/login", {
+        replace: true,
+        state: { message: "Your session expired. Please sign in again." },
+      });
+    };
+
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+  }, [navigate]);
+
   const login = useCallback(async (req: LoginRequest) => {
     setIsLoading(true);
     try {
       await apiFetch("api/auth/login", {
         method: "POST",
         body: JSON.stringify(req),
+        authMode: "silent",
+        showToast: false,
       });
 
       await refresh();
@@ -55,13 +76,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await apiFetch("api/users", {
       method: "POST",
       body: JSON.stringify(req),
+      authMode: "silent",
+      showToast: false,
     });
   }, []);
 
   const logout = useCallback(async () => {
     setIsLoading(true);
     try {
-      await apiFetch("api/auth/logout", { method: "POST" });
+      await apiFetch("api/auth/logout", { method: "POST", showToast: false });
       setUser(null);
     } finally {
       setIsLoading(false);

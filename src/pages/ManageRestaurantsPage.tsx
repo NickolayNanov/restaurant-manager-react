@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import ManageRestaurantsHeader from "../components/restaurants/ManageRestaurantsHeader";
 import ManageRestaurantsTable from "../components/restaurants/ManageRestaurantsTable";
 import type { Restaurant, RestaurantFormValues, SingleRestaurantApiResponse } from "../types/restaurants-types";
-import { apiFetch } from "../api/apiFetch";
+import { apiFetch, getApiErrorMessages } from "../api/apiFetch";
 import RestaurantForm from "../components/restaurants/RestaurantForm";
 import ModalShell from "../components/modals/ModalShell";
 import { classNames } from "../components/helper";
@@ -39,27 +39,33 @@ const ManageRestaurantsPage = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Restaurant | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Restaurant | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   async function fetchRestaurants() {
-    const data = await apiFetch("api/restaurants", {
-      method: "GET"
-    });
-    
-    const restaurants = data.restaurants.map((r: SingleRestaurantApiResponse) => {
-      return {
-        id: r.id,
-        name: r.name,
-        description: r.description,
-        status: r.status,
-        cuisine: r.cuisine,
-        location: r.location,
-        imgUrl: r.imgUrl,
-        ownerId: r.ownerId
-      }
-    });
+    try {
+      setLoadError(null);
+      const data = await apiFetch("api/restaurants", {
+        method: "GET"
+      });
+      
+      const restaurants = data.restaurants.map((r: SingleRestaurantApiResponse) => {
+        return {
+          id: r.id,
+          name: r.name,
+          description: r.description,
+          status: r.status,
+          cuisine: r.cuisine,
+          location: r.location,
+          imgUrl: r.imgUrl,
+          ownerId: r.ownerId
+        }
+      });
 
-    if (restaurants) {
-      setRows(restaurants);
+      if (restaurants) {
+        setRows(restaurants);
+      }
+    } catch (error) {
+      setLoadError(getApiErrorMessages(error, "Restaurants could not be loaded.")[0]);
     }
   }
 
@@ -74,7 +80,8 @@ const ManageRestaurantsPage = () => {
   const createRestaurant = async (formData: RestaurantFormValues) => {
     const response = await apiFetch("api/restaurants", {
       method: "POST",
-      body: buildRestaurantFormData(formData)
+      body: buildRestaurantFormData(formData),
+      showToast: false,
     });
 
     if (response) {
@@ -97,7 +104,8 @@ const ManageRestaurantsPage = () => {
   const updateRestaurant = async (id: string, formData: RestaurantFormValues) => {
     await apiFetch("api/restaurants", {
       method: "PUT",
-      body: buildRestaurantFormData(formData, id)
+      body: buildRestaurantFormData(formData, id),
+      showToast: false,
     });
 
     await fetchRestaurants();
@@ -105,11 +113,15 @@ const ManageRestaurantsPage = () => {
   }
 
   const deleteRestaurant = async (id: string) => {
-    await apiFetch(`api/restaurants/${id}`, {
-      method: "DELETE"
-    });
-    setRows((prev) => prev.filter((r) => r.id !== id));
-    setDeleteTarget(null);
+    try {
+      await apiFetch(`api/restaurants/${id}`, {
+        method: "DELETE"
+      });
+      setRows((prev) => prev.filter((r) => r.id !== id));
+      setDeleteTarget(null);
+    } catch {
+      // apiFetch owns non-form error toasts.
+    }
   }
 
   return (
@@ -117,6 +129,12 @@ const ManageRestaurantsPage = () => {
       {/* Header area (matches your app's style) */}
 
       <ManageRestaurantsHeader setCreateOpen={setCreateOpen} />
+
+      {loadError && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {loadError}
+        </div>
+      )}
 
       {/* Table card */}
       <ManageRestaurantsTable

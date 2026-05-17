@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import FormErrorSummary from "../components/shared/FormErrorSummary";
 
 const LoginPage = () => {
   const { login } = useAuth();
@@ -10,18 +11,18 @@ const LoginPage = () => {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setErrors([]);
     setBusy(true);
     try {
       await login({ email, password });
       navigate("/dashboard");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+    } catch {
+      setErrors(["Invalid email or password."]);
     } finally {
       setBusy(false);
     }
@@ -67,11 +68,7 @@ const LoginPage = () => {
               </div>
             )}
 
-            {error && (
-              <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                {error}
-              </div>
-            )}
+            <FormErrorSummary messages={errors} />
 
             <button
               disabled={busy}

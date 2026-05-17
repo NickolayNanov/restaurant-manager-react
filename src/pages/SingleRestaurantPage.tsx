@@ -1,7 +1,7 @@
 import { Pencil, Trash2, RefreshCw, MapPin, UtensilsCrossed, Plus, ArrowRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { apiFetch } from "../api/apiFetch";
+import { apiFetch, getApiErrorMessages } from "../api/apiFetch";
 import type { RestaurantFormValues, RestaurantWithMenu, SingleRestaurantApiResponse } from "../types/restaurants-types";
 import type { Menu, MenuForm } from "../types/menu-types";
 import ModalShell from "../components/modals/ModalShell";
@@ -19,6 +19,7 @@ const SingleRestaurantPage = () => {
     const { restaurantId } = useParams();
     const navigate = useNavigate();
     const [restaurant, setRestaurant] = useState<RestaurantWithMenu | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     const [editTarget, setEditTarget] = useState<RestaurantWithMenu | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<RestaurantWithMenu | null>(null);
@@ -26,12 +27,17 @@ const SingleRestaurantPage = () => {
     const [createMenuModalVisible, setCreateMenuModalVisible] = useState<boolean>(false);
 
     const fetchRestaurant = useCallback(async () => {
-        const restaurantData: SingleRestaurantApiResponse = await apiFetch(`api/restaurants/${restaurantId}`, {
-            method: "GET"
-        });
+        try {
+            setLoadError(null);
+            const restaurantData: SingleRestaurantApiResponse = await apiFetch(`api/restaurants/${restaurantId}`, {
+                method: "GET"
+            });
 
-        if (restaurantData) {
-            setRestaurant(restaurantData);
+            if (restaurantData) {
+                setRestaurant(restaurantData);
+            }
+        } catch (error) {
+            setLoadError(getApiErrorMessages(error, "Restaurant could not be loaded.")[0]);
         }
     }, [restaurantId]);
 
@@ -77,7 +83,8 @@ const SingleRestaurantPage = () => {
 
         await apiFetch("api/restaurants", {
             method: "PUT",
-            body: data
+            body: data,
+            showToast: false,
         });
 
         await fetchRestaurant();
@@ -85,11 +92,15 @@ const SingleRestaurantPage = () => {
     }
 
     const deleteRestaurant = async (id: string) => {
-        await apiFetch(`api/restaurants/${id}`, {
-            method: "DELETE"
-        });
+        try {
+            await apiFetch(`api/restaurants/${id}`, {
+                method: "DELETE"
+            });
 
-        navigate("/manage-restaurants");
+            navigate("/manage-restaurants");
+        } catch {
+            // apiFetch owns non-form error toasts.
+        }
     }
 
     const addMenu = async (formData: MenuForm) => {
@@ -103,7 +114,8 @@ const SingleRestaurantPage = () => {
 
         const menu: Menu = await apiFetch("api/menus", {
             method: "POST",
-            body: data
+            body: data,
+            showToast: false,
         });
         if (menu && restaurant) {
             const newData: RestaurantWithMenu = {
@@ -120,7 +132,7 @@ const SingleRestaurantPage = () => {
     if (!restaurant) {
         return (
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="text-sm text-slate-700">Restaurant not found.</div>
+                <div className="text-sm text-slate-700">{loadError ?? "Loading restaurant..."}</div>
                 <Link
                     to="/manage-restaurants"
                     className="mt-3 inline-flex rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"

@@ -4,7 +4,7 @@ import { classNames } from "../helper";
 import IconDots from "./IconDots";
 import IconPlus from "./IconPlus";
 import IconSearch from "./IconSearch";
-import { apiFetch } from "../../api/apiFetch";
+import { apiFetch, getApiErrorMessages } from "../../api/apiFetch";
 import type { Category, ListAllCategoriesApiResponse } from "../../types/categories-types";
 
 const CategoriesSection: React.FC = () => {
@@ -14,14 +14,20 @@ const CategoriesSection: React.FC = () => {
 
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<Category | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     const fetchCategoriesData = useCallback(async () => {
-        const categoriesData: ListAllCategoriesApiResponse = await apiFetch("api/categories", {
-            method: "GET"
-        })
+        try {
+            setLoadError(null);
+            const categoriesData: ListAllCategoriesApiResponse = await apiFetch("api/categories", {
+                method: "GET"
+            })
 
-        if (categoriesData) {
-            setCategories(categoriesData.categories);
+            if (categoriesData) {
+                setCategories(categoriesData.categories);
+            }
+        } catch (error) {
+            setLoadError(getApiErrorMessages(error, "Categories could not be loaded.")[0]);
         }
     }, []);
 
@@ -61,26 +67,34 @@ const CategoriesSection: React.FC = () => {
     };
 
     const toggleVisible = async (category: Category) => {
-        await apiFetch('api/categories', {
-            method: "PUT",
-            body: JSON.stringify({
-                id: category.id,
-                name: category.name,
-                isActive: !category.isActive
-            })
-        });
+        try {
+            await apiFetch('api/categories', {
+                method: "PUT",
+                body: JSON.stringify({
+                    id: category.id,
+                    name: category.name,
+                    isActive: !category.isActive
+                })
+            });
 
-        setCategories((prev) =>
-            prev.map((c) => (c.id === category.id ? { ...c, isActive: !c.isActive } : c))
-        );
+            setCategories((prev) =>
+                prev.map((c) => (c.id === category.id ? { ...c, isActive: !c.isActive } : c))
+            );
+        } catch {
+            // apiFetch owns non-form error toasts.
+        }
     };
 
     const deleteCategory = async (id: string) => {
-        await apiFetch(`api/categories/${id}`, {
-            method: "DELETE"
-        });
+        try {
+            await apiFetch(`api/categories/${id}`, {
+                method: "DELETE"
+            });
 
-        setCategories((prev) => prev.filter((c) => c.id !== id));
+            setCategories((prev) => prev.filter((c) => c.id !== id));
+        } catch {
+            // apiFetch owns non-form error toasts.
+        }
     };
 
     const saveCategory = async (payload: { name: string; isActive: boolean }) => {
@@ -90,14 +104,16 @@ const CategoriesSection: React.FC = () => {
                 body: JSON.stringify({
                     id: editing.id,
                     ...payload
-                })
+                }),
+                showToast: false,
             });
         } else {
             await apiFetch('api/categories', {
                 method: "POST",
                 body: JSON.stringify({
                     ...payload
-                })
+                }),
+                showToast: false,
             });
         }
 
@@ -131,6 +147,12 @@ const CategoriesSection: React.FC = () => {
 
             {/* Toolbar */}
             <div className="px-6 py-4">
+                {loadError && (
+                    <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        {loadError}
+                    </div>
+                )}
+
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="relative w-full sm:max-w-md">
                         <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
