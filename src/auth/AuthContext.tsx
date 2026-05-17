@@ -1,11 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, useRef } from "react";
-import type { AuthState, LoginRequest, UserInfo } from "./types";
+import type { AuthState, LoginRequest, RegisterRequest, UserInfo } from "./types";
 import { apiFetch } from "../api/apiFetch";
 
 type AuthContextValue = AuthState & {
     login: (req: LoginRequest) => Promise<void>;
+    register: (req: RegisterRequest) => Promise<void>;
     logout: () => void;
+    refresh: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -49,6 +51,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [refresh]);
 
+  const register = useCallback(async (req: RegisterRequest) => {
+    await apiFetch("api/users", {
+      method: "POST",
+      body: JSON.stringify(req),
+    });
+  }, []);
+
   const logout = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -65,10 +74,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       isAuthenticated: !!user,
       isLoading,
       login,
+      register,
       logout,
       refresh,
     }),
-    [user, isLoading, login, logout, refresh]
+    [user, isLoading, login, register, logout, refresh]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

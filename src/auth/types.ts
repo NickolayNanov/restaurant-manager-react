@@ -17,6 +17,18 @@ export type LoginRequest = {
   password: string;
 };
 
+export type RegisterRequest = {
+  username: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+};
+
+export type RegisterResponse = {
+  id: string;
+  username: string;
+};
+
 export type LoginResponse = {
   token: string;
   tokenExpiration: Date;

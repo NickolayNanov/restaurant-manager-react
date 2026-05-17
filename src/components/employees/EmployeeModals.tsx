@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { EmployeeDraft, EmploymentType, EmploymentStatus } from "../../types/employees-types";
 import { classNames } from "../helper";
 import { IMAGE_ACCEPT, validateImageFile } from "../imageUpload";
@@ -41,12 +41,6 @@ const EmployeeModal: React.FC<{
         && data.employmentType.trim()
         && salaryIsValid
         && imageIsValid;
-
-    useEffect(() => {
-        setData(initial);
-        setPreviewUrl(initial.existingImgUrl ?? "");
-        setImageError(null);
-    }, [initial]);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

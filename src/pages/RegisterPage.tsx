@@ -1,27 +1,36 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 
-const LoginPage = () => {
-  const { login } = useAuth();
+const RegisterPage = () => {
+  const { register } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-  const successMessage = (location.state as { message?: string } | null)?.message;
 
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
     setBusy(true);
     try {
-      await login({ email, password });
-      navigate("/dashboard");
+      await register({ username, email, password, confirmPassword });
+      navigate("/login", {
+        replace: true,
+        state: { message: "Account created. Please sign in." },
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
       setBusy(false);
     }
@@ -31,12 +40,24 @@ const LoginPage = () => {
     <div className="min-h-full bg-slate-50">
       <div className="mx-auto flex min-h-full max-w-md items-center px-4 py-10">
         <div className="w-full rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h1 className="text-xl font-semibold text-slate-900">Sign in</h1>
+          <h1 className="text-xl font-semibold text-slate-900">Create account</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Welcome back to your restaurant workspace.
+            Set up your restaurant manager account.
           </p>
 
           <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+            <div>
+              <label className="text-xs font-medium text-slate-700">Username</label>
+              <input
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+                minLength={3}
+                required
+              />
+            </div>
+
             <div>
               <label className="text-xs font-medium text-slate-700">Email</label>
               <input
@@ -56,16 +77,24 @@ const LoginPage = () => {
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
+                autoComplete="new-password"
+                minLength={3}
                 required
               />
             </div>
 
-            {successMessage && (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                {successMessage}
-              </div>
-            )}
+            <div>
+              <label className="text-xs font-medium text-slate-700">Confirm password</label>
+              <input
+                type="password"
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+                minLength={3}
+                required
+              />
+            </div>
 
             {error && (
               <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
@@ -77,14 +106,14 @@ const LoginPage = () => {
               disabled={busy}
               className="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
             >
-              {busy ? "Signing in..." : "Sign in"}
+              {busy ? "Creating account..." : "Create account"}
             </button>
           </form>
 
           <p className="mt-5 text-center text-sm text-slate-600">
-            Don't have an account?{" "}
-            <Link className="font-semibold text-slate-900 hover:text-slate-700" to="/register">
-              Create one
+            Already have an account?{" "}
+            <Link className="font-semibold text-slate-900 hover:text-slate-700" to="/login">
+              Sign in
             </Link>
           </p>
         </div>
@@ -93,4 +122,4 @@ const LoginPage = () => {
   );
 }
 
-export default LoginPage;
+export default RegisterPage;

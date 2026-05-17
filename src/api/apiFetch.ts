@@ -1,6 +1,6 @@
-import { toast } from "sonner"
+import { toast } from "sonner";
 
-const API_BASE_URL = import.meta.env.VITE_SERVER_BASE_URL as string
+const API_BASE_URL = import.meta.env.VITE_SERVER_BASE_URL as string;
 
 const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
   const fullEndpoint = new URL(endpoint, API_BASE_URL).toString();
@@ -26,6 +26,8 @@ const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     for (let i = 0; i < errors.length; i++) {
       toast.error(errors[i] as string);
     }
+
+    throw new Error(errors[0] as string);
   }
 
   if (res.status == 200 || res.status == 201) {
