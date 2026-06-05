@@ -20,7 +20,17 @@ const Sidebar = () => {
     <aside className="rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="p-4">
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-full bg-slate-200" />
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-200">
+            {user?.profilePictureUrl ? (
+              <img
+                className="h-full w-full object-cover"
+                src={user.profilePictureUrl}
+                alt="User avatar"
+              />
+            ) : (
+              <User className="h-5 w-5 text-slate-500" />
+            )}
+          </div>
           <div>
             <div className="text-sm font-semibold text-slate-900">
               {user?.username ?? "Guest"}

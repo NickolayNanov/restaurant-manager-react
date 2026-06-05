@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { type MenuItemFormValues } from "../../pages/MenuEditorPage";
 import type { Category } from "../../types/categories-types";
 import { cx } from "../helper";
+import { IMAGE_ACCEPT, validateImageFile } from "../imageUpload";
+import { getApiErrorMessages } from "../../api/apiFetch";
+import FormErrorSummary from "../shared/FormErrorSummary";
 
 const MenuItemForm = ({
   initial,
@@ -14,38 +17,57 @@ const MenuItemForm = ({
   categories: Category[];
   submitLabel: string;
   onCancel: () => void;
-  onSubmit: (v: MenuItemFormValues) => void;
+  onSubmit: (v: MenuItemFormValues) => Promise<void>;
 }) => {
   const [v, setV] = useState<MenuItemFormValues>(initial);
   const [err, setErr] = useState<Record<string, string>>({});
+  const [apiErrors, setApiErrors] = useState<string[]>([]);
+  const [previewUrl, setPreviewUrl] = useState(initial.existingImgUrl ?? "");
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const validate = (x: MenuItemFormValues) => {
     const e: Record<string, string> = {};
     if (!x.name.trim()) e.name = "Name is required";
     if (!Number.isFinite(x.price) || x.price <= 0) e.price = "Price must be > 0";
     if (!x.category.name.trim()) e.category = "Category is required";
+    if (!x.imageFile && !x.existingImgUrl) e.imageFile = "Image is required";
+    const imageError = validateImageFile(x.imageFile);
+    if (imageError) e.imageFile = imageError;
     return e;
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setApiErrors([]);
     const eMap = validate(v);
     setErr(eMap);
     if (Object.keys(eMap).length) return;
 
-    onSubmit({
-      name: v.name.trim(),
-      price: Number(v.price),
-      imgUrl: v.imgUrl?.trim() || "",
-      isActive: v.isActive,
-      category: {
-        ...v.category
-      }
-    });
+    try {
+      await onSubmit({
+        name: v.name.trim(),
+        price: Number(v.price),
+        imageFile: v.imageFile,
+        existingImgUrl: v.existingImgUrl,
+        isActive: v.isActive,
+        category: {
+          ...v.category
+        }
+      });
+    } catch (error) {
+      setApiErrors(getApiErrorMessages(error, "Menu item could not be saved."));
+    }
   };
 
   return (
     <form className="space-y-4" onSubmit={submit}>
+      <FormErrorSummary messages={apiErrors} />
+
       <div>
         <label className="text-xs font-medium text-slate-700">Name</label>
         <input
@@ -92,13 +114,27 @@ const MenuItemForm = ({
       </div>
 
       <div>
-        <label className="text-xs font-medium text-slate-700">Image URL</label>
+        <label className="text-xs font-medium text-slate-700">Image</label>
+        {previewUrl && (
+          <div className="mt-2 h-32 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+            <img src={previewUrl} alt={v.name || "Menu item preview"} className="h-full w-full object-cover" />
+          </div>
+        )}
         <input
-          className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
-          value={v.imgUrl ?? ""}
-          onChange={(e) => setV((p) => ({ ...p, imgUrl: e.target.value }))}
-          placeholder="https://..."
+          className={cx(
+            "mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-slate-400",
+            err.imageFile ? "border-rose-300" : "border-slate-200"
+          )}
+          type="file"
+          accept={IMAGE_ACCEPT}
+          onChange={(e) => {
+            const file = e.target.files?.[0] ?? null;
+            setV((p) => ({ ...p, imageFile: file }));
+            if (previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+            setPreviewUrl(file ? URL.createObjectURL(file) : v.existingImgUrl ?? "");
+          }}
         />
+        {err.imageFile && <div className="mt-1 text-xs text-rose-600">{err.imageFile}</div>}
       </div>
 
       <div>

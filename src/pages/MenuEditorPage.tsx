@@ -1,5 +1,4 @@
-/* eslint-disable react-hooks/immutability */
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -12,20 +11,29 @@ import type { MenuWithItems } from "../types/menu-types";
 import ModalShell from "../components/modals/ModalShell";
 import MenuItemForm from "../components/menu-items/MenuItemForm";
 import MenuEditForm from "../components/menus/MenuEditForm";
-import { apiFetch } from "../api/apiFetch";
+import { apiFetch, getApiErrorMessages } from "../api/apiFetch";
 import { type Category, type ListAllCategoriesApiResponse } from "../types/categories-types";
 import MenuItemsSection from "../components/menu-items/MenuItemsSection";
 import MenuInfoCard from "../components/menus/MenuInfoCard";
 import type { SingleRestaurantApiResponse } from "../types/restaurants-types";
+import { appendFileIfSelected } from "../components/imageUpload";
 
 // ---------- forms ----------
-export type MenuEditValues = Pick<MenuWithItems, "name" | "description" | "imgUrl" | "isActive" | "type">;
-export type MenuItemFormValues = Pick<MenuItem, "name" | "price" | "imgUrl" | "isActive" | "category">;
+export type MenuEditValues = Pick<MenuWithItems, "name" | "description" | "isActive" | "type"> & {
+  id?: string | null;
+  restaurantId?: string;
+  imageFile: File | null;
+  existingImgUrl?: string;
+};
+export type MenuItemFormValues = Pick<MenuItem, "name" | "price" | "isActive" | "category"> & {
+  imageFile: File | null;
+  existingImgUrl?: string;
+};
 
 const emptyItem: MenuItemFormValues = {
   name: "",
   price: 0,
-  imgUrl: "",
+  imageFile: null,
   isActive: true,
   category: { name: "", id: "", isActive: false, menuItemsCount: 0 }
 };
@@ -53,37 +61,36 @@ const MenuEditorPage = () => {
   const [itemEditTarget, setItemEditTarget] = useState<MenuItem | null>(null);
   const [itemDeleteTarget, setItemDeleteTarget] = useState<MenuItem | null>(null);
   const [menuDeleteOpen, setMenuDeleteOpen] = useState<boolean>(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const didInit = useRef(false);
+  const fetchMenuData = useCallback(async () => {
+    try {
+      setLoadError(null);
+      const menuData: MenuWithItems = await apiFetch(`api/menus/${menuId}`, {
+        method: "GET"
+      })
 
-  useEffect(() => {
-    if (didInit.current) return;
-    didInit.current = true;
-
-    void fetchRestaurantData();
-    void fetchMenuData();
-    void fetchCategoriesData();
-  }, []);
-
-  const fetchMenuData = async () => {
-    const menuData: MenuWithItems = await apiFetch(`api/menus/${menuId}`, {
-      method: "GET"
-    })
-
-    if (menuData) {
-      setMenu(menuData);
+      if (menuData) {
+        setMenu(menuData);
+      }
+    } catch (error) {
+      setLoadError(getApiErrorMessages(error, "Menu could not be loaded.")[0]);
     }
-  };
+  }, [menuId]);
 
-  const fetchRestaurantData = async () => {
-    const restaurantData: SingleRestaurantApiResponse = await apiFetch(`api/restaurants/${restaurantId}`, {
-      method: "GET"
-    })
+  const fetchRestaurantData = useCallback(async () => {
+    try {
+      const restaurantData: SingleRestaurantApiResponse = await apiFetch(`api/restaurants/${restaurantId}`, {
+        method: "GET"
+      })
 
-    if (restaurantData) {
-      setRestaurant(restaurantData);
+      if (restaurantData) {
+        setRestaurant(restaurantData);
+      }
+    } catch (error) {
+      setLoadError(getApiErrorMessages(error, "Restaurant could not be loaded.")[0]);
     }
-  };
+  }, [restaurantId]);
 
   const fetchMenuItems = async () => {
     const data = await apiFetch(`api/menu-items/by-menu/${menuId}`, {
@@ -91,32 +98,60 @@ const MenuEditorPage = () => {
     })
 
     if (data) {
-      setMenu({ ...menu, items: data.menuItems });
+      setMenu((current) => ({ ...current, items: data.menuItems }));
     }
   };
 
-  const fetchCategoriesData = async () => {
-    const categoriesData: ListAllCategoriesApiResponse = await apiFetch("api/categories", {
-      method: "GET"
-    })
+  const fetchCategoriesData = useCallback(async () => {
+    try {
+      const categoriesData: ListAllCategoriesApiResponse = await apiFetch("api/categories", {
+        method: "GET"
+      })
 
-    if (categoriesData) {
-      setCategories(categoriesData.categories);
+      if (categoriesData) {
+        setCategories(categoriesData.categories);
+      }
+    } catch (error) {
+      setLoadError(getApiErrorMessages(error, "Categories could not be loaded.")[0]);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchRestaurantData();
+      void fetchMenuData();
+      void fetchCategoriesData();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [fetchRestaurantData, fetchMenuData, fetchCategoriesData]);
 
   const deleteMenu = async (menuId: string) => {
-    await apiFetch(`api/menus/${menuId}`, {
-      method: "DELETE"
-    });
+    try {
+      await apiFetch(`api/menus/${menuId}`, {
+        method: "DELETE"
+      });
 
-    navigate('../..', { relative: 'path' });
+      navigate('../..', { relative: 'path' });
+    } catch {
+      // apiFetch owns non-form error toasts.
+    }
   };
 
   const editMenu = async (formData: MenuEditValues) => {
+    const data = new FormData();
+    if (formData.id) data.append("id", formData.id);
+    data.append("name", formData.name);
+    data.append("description", formData.description);
+    data.append("isActive", String(formData.isActive));
+    data.append("type", formData.type);
+    data.append("restaurantId", formData.restaurantId ?? restaurantId);
+    appendFileIfSelected(data, formData.imageFile);
+
     await apiFetch("api/menus", {
       method: "PUT",
-      body: JSON.stringify(formData)
+      body: data,
+      showToast: false,
     })
 
     await fetchMenuData();
@@ -124,16 +159,18 @@ const MenuEditorPage = () => {
   };
 
   const addItem = async (formData: MenuItemFormValues) => {
+    const data = new FormData();
+    data.append("categoryId", formData.category.id);
+    data.append("menuId", menu.id);
+    data.append("name", formData.name);
+    data.append("price", String(formData.price));
+    data.append("isActive", String(formData.isActive));
+    appendFileIfSelected(data, formData.imageFile);
+
     const newItem = await apiFetch('api/menu-items', {
       method: "POST",
-      body: JSON.stringify({
-        categoryId: formData.category.id,
-        menuId: menu.id,
-        name: formData.name,
-        price: formData.price,
-        imgUrl: formData.imgUrl,
-        isActive: formData.isActive
-      })
+      body: data,
+      showToast: false,
     });
 
     if (newItem) {
@@ -144,16 +181,18 @@ const MenuEditorPage = () => {
   };
 
   const editItem = async (id: string, formData: MenuItemFormValues) => {
+    const data = new FormData();
+    data.append("id", id);
+    data.append("categoryId", formData.category.id);
+    data.append("name", formData.name);
+    data.append("price", String(formData.price));
+    data.append("isActive", String(formData.isActive));
+    appendFileIfSelected(data, formData.imageFile);
+
     await apiFetch('api/menu-items', {
       method: "PUT",
-      body: JSON.stringify({
-        id,
-        categoryId: formData.category.id,
-        name: formData.name,
-        price: formData.price,
-        imgUrl: formData.imgUrl,
-        isActive: formData.isActive
-      })
+      body: data,
+      showToast: false,
     });
 
     await fetchMenuItems();
@@ -161,16 +200,26 @@ const MenuEditorPage = () => {
   };
 
   const deleteItem = async (id: string) => {
-    await apiFetch(`api/menu-items/${id}`, {
-      method: "DELETE"
-    });
+    try {
+      await apiFetch(`api/menu-items/${id}`, {
+        method: "DELETE"
+      });
 
-    await fetchMenuItems();
-    setItemDeleteTarget(null);
+      await fetchMenuItems();
+      setItemDeleteTarget(null);
+    } catch {
+      // apiFetch owns non-form error toasts.
+    }
   };
 
   return (
     <div className="space-y-4">
+      {loadError && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {loadError}
+        </div>
+      )}
+
       {/* Breadcrumb + header */}
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
@@ -210,7 +259,7 @@ const MenuEditorPage = () => {
           <button
             onClick={fetchMenuData}
             className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            title="Refresh dummy data"
+            title="Refresh"
           >
             <RefreshCw className="h-4 w-4" />
           </button>
@@ -233,12 +282,13 @@ const MenuEditorPage = () => {
           <MenuEditForm
             initial={{
               id: menu.id,
-              name: menu.name,
-              description: menu.description,
-              imgUrl: menu.imgUrl ?? "",
-              isActive: menu.isActive,
-              type: menu.type,
-              restaurantId: menu.restaurantId
+	              name: menu.name,
+	              description: menu.description,
+	              imageFile: null,
+                existingImgUrl: menu.imgUrl ?? "",
+	              isActive: menu.isActive,
+	              type: menu.type,
+	              restaurantId: menu.restaurantId
             }}
             onCancel={() => setMenuEditOpen(false)}
             onSubmit={editMenu}
@@ -260,11 +310,12 @@ const MenuEditorPage = () => {
         <ModalShell title={`Edit: ${itemEditTarget.name}`} onClose={() => setItemEditTarget(null)}>
           <MenuItemForm
             initial={{
-              name: itemEditTarget.name,
-              price: itemEditTarget.price,
-              imgUrl: itemEditTarget.imgUrl ?? "",
-              isActive: itemEditTarget.isActive,
-              category: itemEditTarget.category
+	              name: itemEditTarget.name,
+	              price: itemEditTarget.price,
+	              imageFile: null,
+                existingImgUrl: itemEditTarget.imgUrl ?? "",
+	              isActive: itemEditTarget.isActive,
+	              category: itemEditTarget.category
             }}
             categories={categories}
             submitLabel="Save"

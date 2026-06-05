@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { RestaurantFormValues, RestaurantStatus } from "../../types/restaurants-types";
 import { classNames } from "../helper";
+import { IMAGE_ACCEPT, validateImageFile } from "../imageUpload";
+import { getApiErrorMessages } from "../../api/apiFetch";
+import FormErrorSummary from "../shared/FormErrorSummary";
 
 const RestaurantForm = ({
   initial,
@@ -15,6 +18,14 @@ const RestaurantForm = ({
 }) => {
   const [form, setForm] = useState<RestaurantFormValues>(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiErrors, setApiErrors] = useState<string[]>([]);
+  const [previewUrl, setPreviewUrl] = useState(initial.existingImgUrl ?? "");
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const validate = (v: RestaurantFormValues) => {
     const e: Record<string, string> = {};
@@ -22,20 +33,29 @@ const RestaurantForm = ({
     if (!v.location.trim()) e.location = "Location is required";
     if (!v.cuisine.trim()) e.cuisine = "Cuisine is required";
     if (!v.description.trim()) e.description = "Description is required";
-    if (!v.imgUrl.trim()) e.imgUrl = "Img url is required";
+    if (!v.imageFile && !v.existingImgUrl) e.imageFile = "Image is required";
+    const imageError = validateImageFile(v.imageFile);
+    if (imageError) e.imageFile = imageError;
     return e;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setApiErrors([]);
     const eMap = validate(form);
     setErrors(eMap);
     if (Object.keys(eMap).length > 0) return;
-    await onSubmit(form);
+    try {
+      await onSubmit(form);
+    } catch (err) {
+      setApiErrors(getApiErrorMessages(err, "Restaurant could not be saved."));
+    }
   }
 
   return (
     <form className="space-y-4" onSubmit={handleSubmit}>
+      <FormErrorSummary messages={apiErrors} />
+
       <div>
         <label className="text-xs font-medium text-slate-700">Name</label>
         <input
@@ -62,7 +82,7 @@ const RestaurantForm = ({
           onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
           placeholder="e.g. Bella Italia"
         />
-        {errors.name && <div className="mt-1 text-xs text-rose-600">{errors.description}</div>}
+        {errors.description && <div className="mt-1 text-xs text-rose-600">{errors.description}</div>}
       </div>
 
       <div>
@@ -106,17 +126,27 @@ const RestaurantForm = ({
       </div>
 
       <div>
-        <label className="text-xs font-medium text-slate-700">Img Url</label>
+        <label className="text-xs font-medium text-slate-700">Image</label>
+        {previewUrl && (
+          <div className="mt-2 h-32 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+            <img src={previewUrl} alt={form.name || "Restaurant preview"} className="h-full w-full object-cover" />
+          </div>
+        )}
         <input
           className={classNames(
             "mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-slate-400",
-            errors.cuisine ? "border-rose-300" : "border-slate-200"
+            errors.imageFile ? "border-rose-300" : "border-slate-200"
           )}
-          value={form.imgUrl}
-          onChange={(e) => setForm((p) => ({ ...p, imgUrl: e.target.value }))}
-          placeholder="e.g. http://localhost:7123/manage-restaurants"
+          type="file"
+          accept={IMAGE_ACCEPT}
+          onChange={(e) => {
+            const file = e.target.files?.[0] ?? null;
+            setForm((p) => ({ ...p, imageFile: file }));
+            if (previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+            setPreviewUrl(file ? URL.createObjectURL(file) : form.existingImgUrl ?? "");
+          }}
         />
-        {errors.cuisine && <div className="mt-1 text-xs text-rose-600">{errors.imgUrl}</div>}
+        {errors.imageFile && <div className="mt-1 text-xs text-rose-600">{errors.imageFile}</div>}
       </div>
 
       <div className="flex justify-end gap-2 pt-2">

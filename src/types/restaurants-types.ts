@@ -37,7 +37,8 @@ export type RestaurantFormValues = {
   status: RestaurantStatus;
   cuisine: string;
   location: string;
-  imgUrl: string;
+  imageFile: File | null;
+  existingImgUrl?: string;
   ownerId: string|null;
 };
 

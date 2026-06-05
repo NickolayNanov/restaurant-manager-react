@@ -1,8 +1,7 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 import { Pencil, Trash2, RefreshCw, MapPin, UtensilsCrossed, Plus, ArrowRight } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { apiFetch } from "../api/apiFetch";
+import { apiFetch, getApiErrorMessages } from "../api/apiFetch";
 import type { RestaurantFormValues, RestaurantWithMenu, SingleRestaurantApiResponse } from "../types/restaurants-types";
 import type { Menu, MenuForm } from "../types/menu-types";
 import ModalShell from "../components/modals/ModalShell";
@@ -12,6 +11,8 @@ import MenuEditForm from "../components/menus/MenuEditForm";
 import StatusPill from "../components/shared/StatusPill";
 import CategoriesSection from "../components/categories/CategoriesSection";
 import EmployeesSection from "../components/employees/EmployeesSection";
+import { appendFileIfSelected } from "../components/imageUpload";
+import MonthlyReportsSection from "../components/restaurants/MonthlyReportsSection";
 
 const cx = (...v: Array<string | false | undefined>) => v.filter(Boolean).join(" ");
 
@@ -19,30 +20,35 @@ const SingleRestaurantPage = () => {
     const { restaurantId } = useParams();
     const navigate = useNavigate();
     const [restaurant, setRestaurant] = useState<RestaurantWithMenu | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     const [editTarget, setEditTarget] = useState<RestaurantWithMenu | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<RestaurantWithMenu | null>(null);
 
     const [createMenuModalVisible, setCreateMenuModalVisible] = useState<boolean>(false);
 
-    const didInit = useRef(false);
+    const fetchRestaurant = useCallback(async () => {
+        try {
+            setLoadError(null);
+            const restaurantData: SingleRestaurantApiResponse = await apiFetch(`api/restaurants/${restaurantId}`, {
+                method: "GET"
+            });
 
-    const fetchRestaurant = async () => {
-        const restaurantData: SingleRestaurantApiResponse = await apiFetch(`api/restaurants/${restaurantId}`, {
-            method: "GET"
-        });
-
-        if (restaurantData) {
-            setRestaurant(restaurantData);
+            if (restaurantData) {
+                setRestaurant(restaurantData);
+            }
+        } catch (error) {
+            setLoadError(getApiErrorMessages(error, "Restaurant could not be loaded.")[0]);
         }
-    }
+    }, [restaurantId]);
 
     useEffect(() => {
-        if (didInit.current) return;
-        didInit.current = true;
+        const timer = window.setTimeout(() => {
+            void fetchRestaurant();
+        }, 0);
 
-        void fetchRestaurant();
-    }, []);
+        return () => window.clearTimeout(timer);
+    }, [fetchRestaurant]);
 
     const activeMenu = useMemo(() => {
         if (!restaurant) return null;
@@ -66,9 +72,20 @@ const SingleRestaurantPage = () => {
     };
 
     const updateRestaurant = async (id: string, formData: RestaurantFormValues) => {
+        const data = new FormData();
+        data.append("id", id);
+        data.append("name", formData.name);
+        data.append("description", formData.description);
+        data.append("location", formData.location);
+        data.append("cuisine", formData.cuisine);
+        data.append("status", formData.status);
+        if (formData.ownerId) data.append("ownerId", formData.ownerId);
+        appendFileIfSelected(data, formData.imageFile);
+
         await apiFetch("api/restaurants", {
             method: "PUT",
-            body: JSON.stringify({ id, ...formData })
+            body: data,
+            showToast: false,
         });
 
         await fetchRestaurant();
@@ -76,17 +93,30 @@ const SingleRestaurantPage = () => {
     }
 
     const deleteRestaurant = async (id: string) => {
-        await apiFetch(`api/restaurants/${id}`, {
-            method: "DELETE"
-        });
+        try {
+            await apiFetch(`api/restaurants/${id}`, {
+                method: "DELETE"
+            });
 
-        navigate("/manage-restaurants");
+            navigate("/manage-restaurants");
+        } catch {
+            // apiFetch owns non-form error toasts.
+        }
     }
 
     const addMenu = async (formData: MenuForm) => {
+        const data = new FormData();
+        data.append("name", formData.name);
+        data.append("description", formData.description);
+        data.append("isActive", String(formData.isActive));
+        data.append("type", formData.type);
+        data.append("restaurantId", formData.restaurantId);
+        appendFileIfSelected(data, formData.imageFile);
+
         const menu: Menu = await apiFetch("api/menus", {
             method: "POST",
-            body: JSON.stringify(formData)
+            body: data,
+            showToast: false,
         });
         if (menu && restaurant) {
             const newData: RestaurantWithMenu = {
@@ -103,7 +133,7 @@ const SingleRestaurantPage = () => {
     if (!restaurant) {
         return (
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="text-sm text-slate-700">Restaurant not found.</div>
+                <div className="text-sm text-slate-700">{loadError ?? "Loading restaurant..."}</div>
                 <Link
                     to="/manage-restaurants"
                     className="mt-3 inline-flex rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
@@ -150,7 +180,7 @@ const SingleRestaurantPage = () => {
                     <button
                         onClick={fetchRestaurant}
                         className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                        title="Refresh dummy data"
+                        title="Refresh"
                     >
                         <RefreshCw className="h-4 w-4" />
                     </button>
@@ -294,6 +324,8 @@ const SingleRestaurantPage = () => {
                 )}
             </section>
 
+            <MonthlyReportsSection restaurantId={restaurantId as string} />
+
             <CategoriesSection />
 
             <EmployeesSection restaurantId={restaurantId as string} />
@@ -313,7 +345,7 @@ const SingleRestaurantPage = () => {
                             id: null,
                             name: "",
                             description: "",
-                            imgUrl: "",
+                            imageFile: null,
                             isActive: false,
                             type: "Default",
                             restaurantId: restaurantId as string

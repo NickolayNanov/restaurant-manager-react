@@ -1,18 +1,17 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import type {
     Employee,
     EmployeeDraft,
     EmployeesSectionProps,
     EmploymentStatus,
-    ListEmployeesByRestaurantResponse,
-    CreateEmployeeRequest,
-    UpdateEmployeeRequest
+    ListEmployeesByRestaurantResponse
 } from "../../types/employees-types";
 import { classNames, formatSalary, statusBadge } from "../helper";
 import EmployeeModal from "./EmployeeModals";
-import { apiFetch } from "../../api/apiFetch";
+import { apiFetch, getApiErrorMessages } from "../../api/apiFetch";
 import IconPlus from "../categories/IconPlus";
 import IconSearch from "../categories/IconSearch";
+import { appendFileIfSelected } from "../imageUpload";
 
 const sampleEmployees: Employee[] = [
     {
@@ -25,6 +24,7 @@ const sampleEmployees: Employee[] = [
         status: "Active",
         salary: 3200,
         currency: "EUR",
+        imgUrl: "",
         createdAt: "2024-09-01",
         updatedAt: "2 days ago",
     },
@@ -38,6 +38,7 @@ const sampleEmployees: Employee[] = [
         status: "OnLeave",
         salary: 2800,
         currency: "EUR",
+        imgUrl: "",
         createdAt: "2023-03-15",
         updatedAt: "1 week ago",
     },
@@ -51,6 +52,7 @@ const sampleEmployees: Employee[] = [
         status: "Paused",
         salary: 18,
         currency: "EUR",
+        imgUrl: "",
         createdAt: "2025-06-10",
         updatedAt: "3 weeks ago",
     },
@@ -66,6 +68,8 @@ const defaultDraft: EmployeeDraft = {
     salary: '0',
     currency: "EUR",
     createdAt: "",
+    imageFile: null,
+    existingImgUrl: "",
 };
 
 const EmployeesSection: React.FC<EmployeesSectionProps> = ({
@@ -80,34 +84,40 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
 
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<Employee | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
-    const didInit = useRef(false);
+    const fetchEmployeesPerRestaurant = useCallback(async () => {
+        try {
+            setLoadError(null);
+            const employeesResponse: ListEmployeesByRestaurantResponse = await apiFetch(`api/employees/per-restaurant/${restaurantId}`, {
+                method: "GET"
+            });
 
-    const fetchEmployeesPerRestaurant = async () => {
-        const employeesResponse: ListEmployeesByRestaurantResponse = await apiFetch(`api/employees/per-restaurant/${restaurantId}`, {
-            method: "GET"
-        });
-
-        if (employeesResponse) {
-            setEmployees(
-                (employeesResponse?.employees ?? []).map((e): Employee => ({
-                    ...e,
-                    status: "Active",
-                    currency: "EUR",
-                    updatedAt: e.updatedAt
-                        ? new Date(e.updatedAt).toLocaleDateString()
-                        : "N/A",
-                }))
-            );
+            if (employeesResponse) {
+                setEmployees(
+                    (employeesResponse?.employees ?? []).map((e): Employee => ({
+                        ...e,
+                        status: e.status ?? "Active",
+                        currency: "EUR",
+                        imgUrl: e.imgUrl ?? "",
+                        updatedAt: e.updatedAt
+                            ? new Date(e.updatedAt).toLocaleDateString()
+                            : "N/A",
+                    }))
+                );
+            }
+        } catch (error) {
+            setLoadError(getApiErrorMessages(error, "Employees could not be loaded.")[0]);
         }
-    };
+    }, [restaurantId]);
 
     useEffect(() => {
-        if (didInit.current) return;
-        didInit.current = true;
+        const timer = window.setTimeout(() => {
+            void fetchEmployeesPerRestaurant();
+        }, 0);
 
-        void fetchEmployeesPerRestaurant();
-    }, []);
+        return () => window.clearTimeout(timer);
+    }, [fetchEmployeesPerRestaurant]);
 
     const roles = useMemo(() => {
         const distinct = Array.from(new Set(employees.map((e) => e.position))).sort((a, b) =>
@@ -155,10 +165,14 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
     };
 
     const removeEmployee = async (id: string) => {
-        await apiFetch(`api/employees/${id}`, {
-            method: "DELETE"
-        });
-        await fetchEmployeesPerRestaurant();
+        try {
+            await apiFetch(`api/employees/${id}`, {
+                method: "DELETE"
+            });
+            await fetchEmployeesPerRestaurant();
+        } catch {
+            // apiFetch owns non-form error toasts.
+        }
     };
 
     const saveEmployee = async (draft: EmployeeDraft) => {
@@ -168,12 +182,14 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
         if (editing) {
             await apiFetch('api/employees', {
                 method: "PUT",
-                body: JSON.stringify(draftToUpdateEmployeeRequest(draft, editing.id))
+                body: draftToUpdateEmployeeFormData(draft, editing.id),
+                showToast: false,
             });
         } else {
             await apiFetch('api/employees', {
                 method: "POST",
-                body: JSON.stringify(draftToCreateEmployeeRequest(draft, restaurantId))
+                body: draftToCreateEmployeeFormData(draft, restaurantId),
+                showToast: false,
             });
         }
 
@@ -182,25 +198,30 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
         setEditing(null);
     };
 
-    const draftToCreateEmployeeRequest = (draft: EmployeeDraft, restaurantId: string | null): CreateEmployeeRequest => ({
-        name: draft.name.trim(),
-        email: draft.email.trim(),
-        phoneNumber: draft.phoneNumber.trim(),
-        position: draft.position.trim(),
-        employmentType: draft.employmentType,
-        salary: Number(draft.salary),
-        restaurantId,
-    });
+    const appendEmployeeFields = (formData: FormData, draft: EmployeeDraft) => {
+        formData.append("name", draft.name.trim());
+        formData.append("email", draft.email.trim());
+        formData.append("phoneNumber", draft.phoneNumber.trim());
+        formData.append("position", draft.position.trim());
+        formData.append("employmentType", draft.employmentType);
+        formData.append("status", draft.status);
+        formData.append("salary", String(Number(draft.salary)));
+        appendFileIfSelected(formData, draft.imageFile);
+    };
 
-    const draftToUpdateEmployeeRequest = (draft: EmployeeDraft, id: string | null): UpdateEmployeeRequest => ({
-        name: draft.name.trim(),
-        email: draft.email.trim(),
-        phoneNumber: draft.phoneNumber.trim(),
-        position: draft.position.trim(),
-        employmentType: draft.employmentType,
-        salary: Number(draft.salary),
-        id,
-    });
+    const draftToCreateEmployeeFormData = (draft: EmployeeDraft, restaurantId: string | null) => {
+        const formData = new FormData();
+        appendEmployeeFields(formData, draft);
+        if (restaurantId) formData.append("restaurantId", restaurantId);
+        return formData;
+    };
+
+    const draftToUpdateEmployeeFormData = (draft: EmployeeDraft, id: string | null) => {
+        const formData = new FormData();
+        appendEmployeeFields(formData, draft);
+        if (id) formData.append("id", id);
+        return formData;
+    };
 
     const employeeToDraft = (e: Employee | null): EmployeeDraft => {
         if (!e) return { ...defaultDraft };
@@ -215,6 +236,8 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
             salary: String(e.salary ?? ""),
             currency: e.currency ?? "EUR",
             createdAt: e.createdAt ?? "",
+            imageFile: null,
+            existingImgUrl: e.imgUrl ?? "",
         };
     };
 
@@ -229,18 +252,7 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
                     </p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                        onClick={() => {
-                            // optional: wire to "Invite employee" flow later
-                            openCreate();
-                        }}
-                    >
-                        Invite
-                    </button>
-
+                <div className="flex items-center">
                     <button
                         type="button"
                         onClick={openCreate}
@@ -254,6 +266,12 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
 
             {/* Toolbar */}
             <div className="px-6 py-4">
+                {loadError && (
+                    <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        {loadError}
+                    </div>
+                )}
+
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="relative w-full lg:max-w-md">
                         <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -270,7 +288,7 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
                             <label className="text-sm text-slate-500">Status</label>
                             <select
                                 value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value as any)}
+                                onChange={(e) => setStatusFilter(e.target.value as EmploymentStatus | "All")}
                                 className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100"
                             >
                                 <option value="All">All</option>
@@ -300,7 +318,7 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
                             <label className="text-sm text-slate-500">Sort</label>
                             <select
                                 value={sort}
-                                onChange={(e) => setSort(e.target.value as any)}
+                                onChange={(e) => setSort(e.target.value as "Name" | "SalaryHigh" | "Updated")}
                                 className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100"
                             >
                                 <option value="Name">Name</option>
@@ -308,18 +326,6 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
                                 <option value="Updated">Updated</option>
                             </select>
                         </div>
-
-                        <button
-                            type="button"
-                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                            onClick={() => {
-                                // optional: export CSV later
-                                // For now, quick demo:
-                                console.log("Export:", employees);
-                            }}
-                        >
-                            Export
-                        </button>
                     </div>
                 </div>
 
@@ -366,7 +372,11 @@ const EmployeesSection: React.FC<EmployeesSectionProps> = ({
                                         {/* Employee */}
                                         <div className="sm:col-span-4">
                                             <div className="flex items-start gap-3">
-                                                <div className="mt-0.5 h-10 w-10 rounded-full bg-slate-200" />
+                                                <div className="mt-0.5 h-10 w-10 overflow-hidden rounded-full bg-slate-200">
+                                                    {e.imgUrl ? (
+                                                        <img src={e.imgUrl} alt={e.name} className="h-full w-full object-cover" />
+                                                    ) : null}
+                                                </div>
                                                 <div className="min-w-0">
                                                     <div className="truncate text-sm font-semibold text-slate-900">
                                                         {e.name}

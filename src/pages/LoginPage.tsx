@@ -1,25 +1,28 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import FormErrorSummary from "../components/shared/FormErrorSummary";
 
 const LoginPage = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const successMessage = (location.state as { message?: string } | null)?.message;
 
-  const [email, setEmail] = useState("admin@demo.com");
-  const [password, setPassword] = useState("admin");
-  const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setErrors([]);
     setBusy(true);
     try {
       await login({ email, password });
       navigate("/dashboard");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+    } catch {
+      setErrors(["Invalid email or password."]);
     } finally {
       setBusy(false);
     }
@@ -31,7 +34,7 @@ const LoginPage = () => {
         <div className="w-full rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h1 className="text-xl font-semibold text-slate-900">Sign in</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Demo: <span className="font-medium">admin@demo.com</span> / <span className="font-medium">admin</span>
+            Welcome back to your restaurant workspace.
           </p>
 
           <form className="mt-6 space-y-4" onSubmit={onSubmit}>
@@ -42,6 +45,8 @@ const LoginPage = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
+                type="email"
+                required
               />
             </div>
 
@@ -53,14 +58,17 @@ const LoginPage = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
+                required
               />
             </div>
 
-            {error && (
-              <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                {error}
+            {successMessage && (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                {successMessage}
               </div>
             )}
+
+            <FormErrorSummary messages={errors} />
 
             <button
               disabled={busy}
@@ -69,6 +77,13 @@ const LoginPage = () => {
               {busy ? "Signing in..." : "Sign in"}
             </button>
           </form>
+
+          <p className="mt-5 text-center text-sm text-slate-600">
+            Don't have an account?{" "}
+            <Link className="font-semibold text-slate-900 hover:text-slate-700" to="/register">
+              Create one
+            </Link>
+          </p>
         </div>
       </div>
     </div>

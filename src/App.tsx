@@ -3,6 +3,7 @@ import AppLayout from "./layouts/AppLayout";
 import DashboardPage from "./pages/DashboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import ManageRestaurantsPage from "./pages/ManageRestaurantsPage";
 import SingleRestaurantPage from "./pages/SingleRestaurantPage";
@@ -12,6 +13,7 @@ const App = () => {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
 
       {/* Protected area */}
       <Route element={<ProtectedRoute />}>
