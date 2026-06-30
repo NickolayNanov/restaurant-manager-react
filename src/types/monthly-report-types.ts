@@ -29,4 +29,5 @@ export type PerformanceAnalyticsMonth = {
 
 export type PerformanceAnalyticsResponse = {
   months: PerformanceAnalyticsMonth[];
+  averageMonthlyRevenue: number;
 };

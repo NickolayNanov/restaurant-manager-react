@@ -9,51 +9,23 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { useEffect, useState } from "react";
-import { apiFetch, getApiErrorMessages } from "../../api/apiFetch";
-import type { PerformanceAnalyticsResponse } from "../../types/monthly-report-types";
+import type { PerformanceAnalyticsMonth } from "../../types/monthly-report-types";
 
 const formatRevenue = (value: number) => `$${value.toLocaleString()}`;
 const formatRating = (value: number) => value.toFixed(1);
 
-const PerformanceAnalytics = () => {
-  const [data, setData] = useState<Array<{ month: string; revenue: number; rating: number | null }>>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+type PerformanceAnalyticsProps = {
+  months: PerformanceAnalyticsMonth[];
+  isLoading: boolean;
+  loadError: string | null;
+};
 
-  useEffect(() => {
-    let mounted = true;
-
-    const loadAnalytics = async () => {
-      try {
-        setIsLoading(true);
-        setLoadError(null);
-        const response: PerformanceAnalyticsResponse = await apiFetch("api/dashboard/performance-analytics?months=6", {
-          method: "GET",
-        });
-
-        if (!mounted) return;
-        setData(
-          response.months.map((month) => ({
-            month: month.label,
-            revenue: month.revenue,
-            rating: month.rating,
-          }))
-        );
-      } catch (error) {
-        if (!mounted) return;
-        setLoadError(getApiErrorMessages(error, "Performance analytics could not be loaded.")[0]);
-      } finally {
-        if (mounted) setIsLoading(false);
-      }
-    };
-
-    void loadAnalytics();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+const PerformanceAnalytics = ({ months, isLoading, loadError }: PerformanceAnalyticsProps) => {
+  const data = months.map((month) => ({
+    month: month.label,
+    revenue: month.revenue,
+    rating: month.rating,
+  }));
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
