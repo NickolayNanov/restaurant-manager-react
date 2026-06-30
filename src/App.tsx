@@ -5,6 +5,7 @@ import ProfilePage from "./pages/ProfilePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ProtectedRoute from "./auth/ProtectedRoute";
+import PublicOnlyRoute from "./auth/PublicOnlyRoute";
 import ManageRestaurantsPage from "./pages/ManageRestaurantsPage";
 import SingleRestaurantPage from "./pages/SingleRestaurantPage";
 import MenuEditorPage from "./pages/MenuEditorPage";
@@ -12,8 +13,10 @@ import MenuEditorPage from "./pages/MenuEditorPage";
 const App = () => {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+      <Route element={<PublicOnlyRoute />}>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+      </Route>
 
       {/* Protected area */}
       <Route element={<ProtectedRoute />}>
